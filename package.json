@@ -1,0 +1,51 @@
+{
+  "name": "openaccountancy",
+  "version": "1.0.0",
+  "description": "This project is designed to simplify the accounting workflow in Mainland China.   本项目旨在简化在中国（大陆）的会计工作流程。",
+  "main": "dist/electron/main/main.js",
+  "directories": {
+    "doc": "doc"
+  },
+  "scripts": {
+    "dev": "concurrently -k \"npm:dev:renderer\" \"npm:dev:electron\"",
+    "dev:renderer": "vite",
+    "dev:electron": "wait-on tcp:5173 && cross-env ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ VITE_DEV_SERVER_URL=http://localhost:5173 electron .",
+    "build": "npm run build:renderer && npm run build:electron",
+    "build:renderer": "vite build",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "start": "electron .",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.electron.json --noEmit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tab1949/OpenAccountancy.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/tab1949/OpenAccountancy/issues"
+  },
+  "homepage": "https://github.com/tab1949/OpenAccountancy#readme",
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "i18next": "^26.7.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-i18next": "^17.1.12",
+    "react-router-dom": "^7.18.5"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.2.1",
+    "concurrently": "^10.0.6",
+    "cross-env": "^10.1.0",
+    "electron": "^45.2.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "wait-on": "^9.5.1"
+  }
+}

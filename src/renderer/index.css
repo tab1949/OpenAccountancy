@@ -455,6 +455,14 @@ a:hover {
 	padding: 0 10px;
 }
 
+.form-grid select {
+	height: 36px;
+	border: 1px solid #bdc7d1;
+	border-radius: 8px;
+	padding: 0 10px;
+	background: #ffffff;
+}
+
 .auth-actions {
 	display: flex;
 	flex-wrap: wrap;
@@ -536,6 +544,114 @@ a:hover {
 	background: #f8ead0;
 }
 
+.page-panel {
+	display: grid;
+	gap: 14px;
+}
+
+.settings-password-panel p {
+	margin: 2px 0 6px;
+}
+
+.user-list-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 10px;
+}
+
+.user-admin-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 14px;
+}
+
+.permission-check-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 6px 10px;
+	margin: 10px 0 12px;
+}
+
+.permission-check-item {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 13px;
+	color: #314559;
+}
+
+.user-table-wrapper {
+	overflow: auto;
+	height: 320px;
+	border: 1px solid #d9e2ea;
+	border-radius: 10px;
+	background: #ffffff;
+	margin-bottom: 12px;
+}
+
+.user-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 13px;
+}
+
+.user-table th,
+.user-table td {
+	padding: 10px;
+	border-bottom: 1px solid #edf2f7;
+	text-align: left;
+	white-space: nowrap;
+}
+
+.user-table th {
+	position: sticky;
+	top: 0;
+	background: #f7fafc;
+	font-weight: 700;
+	color: #33475b;
+	z-index: 1;
+}
+
+.user-edit-panel {
+	border: 1px solid #d9e2ea;
+	border-radius: 10px;
+	padding: 12px;
+	background: #f8fbff;
+}
+
+.modal-backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(20, 32, 43, 0.45);
+	display: grid;
+	place-items: center;
+	padding: 20px;
+	z-index: 200;
+}
+
+.modal-card {
+	width: min(760px, 100%);
+	max-height: calc(100vh - 40px);
+	overflow: auto;
+	background: #ffffff;
+	border-radius: 12px;
+	padding: 16px;
+	box-shadow: 0 18px 36px rgba(25, 40, 58, 0.18);
+}
+
+.modal-card-narrow {
+	width: min(560px, 100%);
+}
+
+.modal-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 10px;
+	margin-top: 12px;
+}
+
 @media (max-width: 1080px) {
 	.workspace {
 		grid-template-columns: 1fr;
@@ -569,5 +685,15 @@ a:hover {
 	.recent-bookset-card {
 		min-height: 280px;
 		max-height: 280px;
+	}
+
+	.user-admin-grid,
+	.permission-check-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.user-list-header {
+		flex-direction: column;
+		align-items: stretch;
 	}
 }

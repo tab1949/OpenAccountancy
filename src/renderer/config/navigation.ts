@@ -124,9 +124,7 @@ export const navSections: NavSection[] = [
         key: "settings-master-data",
         labelKey: "nav.group.settingsMasterData",
         items: [
-          { key: "settings-bookset", labelKey: "nav.item.settingsBookset", path: "/app/settings/bookset", descriptionKey: "nav.desc.settingsBookset" },
-          { key: "settings-account", labelKey: "nav.item.settingsAccount", path: "/app/settings/security", descriptionKey: "nav.desc.settingsAccount" },
-          { key: "settings-system", labelKey: "nav.item.settingsSystem", path: "/app/settings/system", descriptionKey: "nav.desc.settingsSystem" }
+          { key: "settings-bookset", labelKey: "nav.item.settingsBookset", path: "/app/settings/bookset", descriptionKey: "nav.desc.settingsBookset" }
         ]
       }
     ]

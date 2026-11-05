@@ -1,19 +1,28 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { HashRouter, Link, NavLink, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import type { AppShellState, RecentBookset, SystemEntryState } from "@common/contracts";
-import { PlaceholderPage } from "@renderer/components/PlaceholderPage";
-import { allNavItems, navSections } from "@renderer/config/navigation";
+import type { AppShellState, AuthSession, RecentBookset, SystemEntryState } from "../common/contracts";
+import { PlaceholderPage } from "./components/PlaceholderPage";
+import { allNavItems, navSections } from "./config/navigation";
+import { EntryRoute } from "./pages/auth/EntryRoute";
+import { InitWizardPage } from "./pages/auth/InitWizardPage";
+import { LoginFlowPage } from "./pages/auth/LoginFlowPage";
+import { RecoverFlowPage } from "./pages/auth/RecoverFlowPage";
+import type { ShellContextState } from "./pages/types";
+import { HomePage } from "./pages/workspace/HomePage";
+import { canAccessPath } from "./pages/workspace/permissions";
+import { RoutedModulePage } from "./pages/workspace/RoutedModulePage";
 
-interface ShellContextState {
-  shellState: AppShellState;
-  recentBooksets: RecentBookset[];
-  refreshShellData: () => Promise<void>;
+interface ToolbarMenuItem {
+  key: string;
+  label: string;
+  onClick?: () => void;
 }
 
 const defaultEntryState: SystemEntryState = {
   hasDatabase: true,
-  mode: "login"
+  mode: "login",
+  initialized: false
 };
 
 const defaultShellState: AppShellState = {
@@ -24,172 +33,14 @@ const defaultShellState: AppShellState = {
   todoItems: []
 };
 
-function EntryRoute({ mode }: { mode: SystemEntryState["mode"] }): JSX.Element {
-  const target = mode === "init" ? "/auth/init" : "/auth/login";
-  return <Navigate to={target} replace />;
-}
-
-function AuthStatus({ hasDatabase }: { hasDatabase: boolean }): JSX.Element {
-  const { t } = useTranslation();
-  const dbStateText = hasDatabase ? t("auth.status.dbDetected") : t("auth.status.dbMissing");
-
-  return (
-    <div className="auth-state-row">
-      <span className={`db-state ${hasDatabase ? "db-state-ok" : "db-state-warning"}`}>{dbStateText}</span>
-    </div>
-  );
-}
-
-function LoginFlowPage({ hasDatabase }: { hasDatabase: boolean }): JSX.Element {
-  const { t } = useTranslation();
-  const navigate = useNavigate();
-
-  return (
-    <main className="auth-shell">
-      <section className="panel auth-panel">
-        <h1>{t("auth.login.title")}</h1>
-        <p>{t("auth.login.description")}</p>
-        <AuthStatus hasDatabase={hasDatabase} />
-        <div className="form-grid">
-          <label>
-            {t("auth.username")}
-            <input type="text" placeholder="请输入用户名" />
-          </label>
-          <label>
-            {t("auth.password")}
-            <input type="password" placeholder="请输入密码" />
-          </label>
-        </div>
-        <p className="auth-hint auth-hint-warning">今日最多尝试 5 次，当前剩余 5 次。</p>
-        <div className="auth-actions">
-          <button type="button" className="btn btn-primary" onClick={() => navigate("/app/home")}>
-            {t("auth.login.cta")}
-          </button>
-          {hasDatabase ? <Link to="/auth/recover">{t("auth.recoverAccount")}</Link> : null}
-          <Link to="/auth/init">{t("auth.initializeSystem")}</Link>
-        </div>
-      </section>
-    </main>
-  );
-}
-
-function InitWizardPage({ hasDatabase }: { hasDatabase: boolean }): JSX.Element {
-  const { t } = useTranslation();
-  const navigate = useNavigate();
-
-  return (
-    <main className="auth-shell">
-      <section className="panel auth-panel auth-panel-wide">
-        <h1>{t("auth.init.title")}</h1>
-        <p>{t("auth.init.description")}</p>
-        <AuthStatus hasDatabase={hasDatabase} />
-
-        <ol className="auth-step-list">
-          <li className="auth-step-item auth-step-item-active">1. 设置数据库路径</li>
-          <li className="auth-step-item">2. 设置管理员账户</li>
-          <li className="auth-step-item">3. 设置密保问题</li>
-        </ol>
-
-        <div className="form-grid">
-          <label>
-            数据库存储路径
-            <input type="text" placeholder="例如：D:\\OpenAccountancyData\\openaccountancy.db" />
-          </label>
-          <label>
-            管理员用户名
-            <input type="text" placeholder="请输入管理员用户名" />
-          </label>
-          <label>
-            管理员密码
-            <input type="password" placeholder="请输入管理员密码" />
-          </label>
-        </div>
-
-        <div className="security-qa-grid">
-          <label>
-            密保问题 1
-            <input type="text" placeholder="请输入自定义问题" />
-            <input type="text" placeholder="请输入答案" />
-          </label>
-          <label>
-            密保问题 2
-            <input type="text" placeholder="请输入自定义问题" />
-            <input type="text" placeholder="请输入答案" />
-          </label>
-          <label>
-            密保问题 3
-            <input type="text" placeholder="请输入自定义问题" />
-            <input type="text" placeholder="请输入答案" />
-          </label>
-        </div>
-
-        <div className="auth-actions">
-          <button type="button" className="btn btn-primary" onClick={() => navigate("/app/home")}>
-            {t("auth.init.cta")}
-          </button>
-          <Link to="/auth/login">{t("common.login")}</Link>
-        </div>
-      </section>
-    </main>
-  );
-}
-
-function RecoverFlowPage({ hasDatabase }: { hasDatabase: boolean }): JSX.Element {
-  const { t } = useTranslation();
-  const navigate = useNavigate();
-
-  return (
-    <main className="auth-shell">
-      <section className="panel auth-panel auth-panel-wide">
-        <h1>{t("auth.recover.title")}</h1>
-        <p>{t("auth.recover.description")}</p>
-        <AuthStatus hasDatabase={hasDatabase} />
-
-        {!hasDatabase ? (
-          <p className="auth-hint auth-hint-warning">当前未检测到数据库文件，无法执行账户找回。</p>
-        ) : (
-          <>
-            <div className="form-grid">
-              <label>
-                密保问题 1：请填写答案
-                <input type="text" placeholder="请输入答案" />
-              </label>
-              <label>
-                密保问题 2：请填写答案
-                <input type="text" placeholder="请输入答案" />
-              </label>
-              <label>
-                密保问题 3：请填写答案
-                <input type="text" placeholder="请输入答案" />
-              </label>
-              <label>
-                校验通过后显示用户名
-                <input type="text" placeholder="account_admin" disabled />
-              </label>
-              <label>
-                设置新密码
-                <input type="password" placeholder="请输入新密码" />
-              </label>
-            </div>
-            <p className="auth-hint">密保答案与密码将以 SHA512 形式存储（业务逻辑待接入）。</p>
-          </>
-        )}
-
-        <div className="auth-actions">
-          <button type="button" className="btn btn-primary" onClick={() => navigate("/auth/login")}>
-            {t("auth.recover.cta")}
-          </button>
-          <Link to="/auth/init">{t("auth.initializeSystem")}</Link>
-        </div>
-      </section>
-    </main>
-  );
-}
-
-interface ToolbarMenuItem {
-  key: string;
-  label: string;
-}
+const defaultAuthSession: AuthSession = {
+  isAuthenticated: false,
+  userId: null,
+  userName: "",
+  displayName: "",
+  role: null,
+  permissions: []
+};
 
 function ToolbarDropdown({
   menuId,
@@ -242,7 +93,15 @@ function ToolbarDropdown({
       >
         {items.map((item) => (
           <li key={item.key} role="none">
-            <button type="button" role="menuitem" className="toolbar-menu-item-btn" onClick={onClose}>
+            <button
+              type="button"
+              role="menuitem"
+              className="toolbar-menu-item-btn"
+              onClick={() => {
+                item.onClick?.();
+                onClose();
+              }}
+            >
               {item.label}
             </button>
           </li>
@@ -252,81 +111,18 @@ function ToolbarDropdown({
   );
 }
 
-function HomePage({ shellState, recentBooksets }: ShellContextState): JSX.Element {
-  const { t } = useTranslation();
-
-  return (
-    <section className="page-grid">
-      <div className="panel hero-panel">
-        <h1>{t("home.title", { appName: shellState.appName })}</h1>
-        <p>
-          {t("home.description")}
-        </p>
-        <div className="hero-actions">
-          <button className="btn btn-primary" type="button">{t("home.openBookset")}</button>
-          <button className="btn" type="button">{t("home.createBookset")}</button>
-          <button className="btn" type="button">{t("home.importBookset")}</button>
-          <button className="btn" type="button">{t("home.restoreBackup")}</button>
-        </div>
-      </div>
-
-      <div className="panel two-col-card recent-bookset-card">
-        <h2>{t("home.recentBooksets")}</h2>
-        <div className="recent-bookset-scroll">
-          {recentBooksets.length === 0 ? (
-            <p>{t("home.noRecentBookset")}</p>
-          ) : (
-            <ul className="list-box">
-              {recentBooksets.map((bookset) => (
-                <li key={bookset.id}>
-                  <strong>{bookset.name}</strong>
-                  <span>{bookset.period}</span>
-                  <small>{new Date(bookset.lastOpenedAt).toLocaleString()}</small>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-
-      <div className="panel two-col-card">
-        <h2>{t("home.quickStart")}</h2>
-        <ul>
-          <li>{t("home.quickStartItems.wizard")}</li>
-          <li>{t("home.quickStartItems.importHistory")}</li>
-          <li>{t("home.quickStartItems.voucherShortcuts")}</li>
-          <li>{t("home.quickStartItems.commandSearch")}</li>
-        </ul>
-      </div>
-
-      <div className="panel two-col-card">
-        <h2>{t("home.announcements")}</h2>
-        <ul>
-          <li>{t("home.releaseNotes")}</li>
-          <li>{t("home.backupReminder")}</li>
-        </ul>
-      </div>
-    </section>
-  );
-}
-
-function RoutedModulePage(): JSX.Element {
+function ShellLayout({
+  shellState,
+  recentBooksets,
+  refreshShellData,
+  authSession,
+  onLogout
+}: ShellContextState & { onLogout: () => Promise<void> }): JSX.Element {
   const { t } = useTranslation();
   const location = useLocation();
-  const match = allNavItems.find((item) => location.pathname === item.path);
-
-  if (!match) {
-    return <PlaceholderPage title={t("common.unknownModule")} description={t("common.routeNotRegistered")} />;
-  }
-
-  return <PlaceholderPage title={t(match.labelKey)} description={t(match.descriptionKey)} />;
-}
-
-function ShellLayout({ shellState, recentBooksets, refreshShellData }: ShellContextState): JSX.Element {
-  const { t } = useTranslation();
-  const location = useLocation();
+  const navigate = useNavigate();
   const toolbarRef = useRef<HTMLElement | null>(null);
-  const [openMenu, setOpenMenu] = useState<"bookset" | "help" | "user" | null>(null);
+  const [openMenu, setOpenMenu] = useState<"bookset" | "settings" | "help" | "user" | null>(null);
 
   const todoCount = shellState.todoItems.length;
   const [selectedPrimaryKey, setSelectedPrimaryKey] = useState<string>(navSections[0]?.key ?? "");
@@ -334,6 +130,14 @@ function ShellLayout({ shellState, recentBooksets, refreshShellData }: ShellCont
   const activeItemLabel = useMemo(() => {
     if (location.pathname === "/app/home") {
       return t("common.home");
+    }
+
+    if (location.pathname === "/app/settings/security") {
+      return t("nav.item.settingsAccount");
+    }
+
+    if (location.pathname === "/app/settings/system") {
+      return t("nav.item.settingsSystem");
     }
 
     const item = allNavItems.find((navItem) => navItem.path === location.pathname);
@@ -347,6 +151,11 @@ function ShellLayout({ shellState, recentBooksets, refreshShellData }: ShellCont
 
     if (matchedSection) {
       setSelectedPrimaryKey(matchedSection.key);
+      return;
+    }
+
+    if (location.pathname.startsWith("/app/settings/")) {
+      setSelectedPrimaryKey("settings");
     }
   }, [location.pathname]);
 
@@ -400,9 +209,19 @@ function ShellLayout({ shellState, recentBooksets, refreshShellData }: ShellCont
     { key: "privacy", label: "隐私政策" }
   ];
 
+  const settingsMenuItems: ToolbarMenuItem[] = [
+    { key: "settings-security", label: "账户安全", onClick: () => navigate("/app/settings/security") },
+    { key: "settings-system", label: "系统设置", onClick: () => navigate("/app/settings/system") }
+  ];
+
   const userMenuItems: ToolbarMenuItem[] = [
-    { key: "settings", label: t("common.settings") },
-    { key: "logout", label: t("common.logout") }
+    {
+      key: "logout",
+      label: t("common.logout"),
+      onClick: () => {
+        void onLogout().then(() => navigate("/auth/login"));
+      }
+    }
   ];
 
   const openMockBookset = async (): Promise<void> => {
@@ -437,6 +256,14 @@ function ShellLayout({ shellState, recentBooksets, refreshShellData }: ShellCont
             onToggle={() => setOpenMenu((prev) => (prev === "bookset" ? null : "bookset"))}
             onClose={() => setOpenMenu(null)}
           />
+          <ToolbarDropdown
+            menuId="settings"
+            label={t("common.settings")}
+            items={settingsMenuItems}
+            isOpen={openMenu === "settings"}
+            onToggle={() => setOpenMenu((prev) => (prev === "settings" ? null : "settings"))}
+            onClose={() => setOpenMenu(null)}
+          />
           {shellState.hasOpenedBookset ? (
             <span className="chip todo-inline">
               {t("shell.todoPanel")}（<span className="todo-count">{todoCount}</span>）
@@ -449,10 +276,10 @@ function ShellLayout({ shellState, recentBooksets, refreshShellData }: ShellCont
         </div>
 
         <div className="topbar-right">
-          <button className="btn btn-small" type="button" onClick={openMockBookset}>
+          <button className="btn btn-small" type="button" onClick={() => void openMockBookset()}>
             {t("shell.openMockBookset")}
           </button>
-          <button className="btn btn-small" type="button" onClick={closeBookset}>
+          <button className="btn btn-small" type="button" onClick={() => void closeBookset()}>
             {t("shell.closeBookset")}
           </button>
           <ToolbarDropdown
@@ -465,7 +292,7 @@ function ShellLayout({ shellState, recentBooksets, refreshShellData }: ShellCont
           />
           <ToolbarDropdown
             menuId="user"
-            label={t("common.user")}
+            label={`${authSession.displayName || authSession.userName || t("common.user")}`}
             items={userMenuItems}
             isOpen={openMenu === "user"}
             onToggle={() => setOpenMenu((prev) => (prev === "user" ? null : "user"))}
@@ -511,6 +338,10 @@ function ShellLayout({ shellState, recentBooksets, refreshShellData }: ShellCont
                 <h3>{t(group.labelKey)}</h3>
                 <ul>
                   {group.items.map((item) => {
+                    if (!canAccessPath(authSession, item.path)) {
+                      return null;
+                    }
+
                     const disabled = item.requiresBookset && !shellState.hasOpenedBookset;
                     return (
                       <li key={item.key}>
@@ -538,7 +369,7 @@ function ShellLayout({ shellState, recentBooksets, refreshShellData }: ShellCont
             <h1>{activeItemLabel}</h1>
             <small>{t("common.version")} {shellState.version}</small>
           </div>
-          <Outlet context={{ shellState, recentBooksets, refreshShellData } satisfies ShellContextState} />
+          <Outlet context={{ shellState, recentBooksets, refreshShellData, authSession } satisfies ShellContextState} />
           <div className="workspace-footer-note">{t("home.footer")}</div>
         </main>
       </div>
@@ -550,6 +381,7 @@ function AppRoutes(): JSX.Element {
   const { t } = useTranslation();
   const [entryState, setEntryState] = useState<SystemEntryState>(defaultEntryState);
   const [entryReady, setEntryReady] = useState(false);
+  const [authSession, setAuthSession] = useState<AuthSession>(defaultAuthSession);
   const [shellState, setShellState] = useState<AppShellState>(defaultShellState);
   const [recentBooksets, setRecentBooksets] = useState<RecentBookset[]>([]);
 
@@ -559,7 +391,18 @@ function AppRoutes(): JSX.Element {
     setEntryReady(true);
   };
 
+  const refreshAuthSession = async (): Promise<void> => {
+    const session = await window.openAccountancy.getAuthSession();
+    setAuthSession(session);
+  };
+
   const refreshShellData = async (): Promise<void> => {
+    if (!authSession.isAuthenticated) {
+      setShellState(defaultShellState);
+      setRecentBooksets([]);
+      return;
+    }
+
     const [state, recents] = await Promise.all([
       window.openAccountancy.getShellState(),
       window.openAccountancy.getRecentBooksets()
@@ -569,10 +412,20 @@ function AppRoutes(): JSX.Element {
     setRecentBooksets(recents);
   };
 
+  const onLogout = async (): Promise<void> => {
+    await window.openAccountancy.logout();
+    await refreshAuthSession();
+    setShellState(defaultShellState);
+    setRecentBooksets([]);
+  };
+
   useEffect(() => {
-    void refreshEntryState();
-    void refreshShellData();
+    void Promise.all([refreshEntryState(), refreshAuthSession()]);
   }, []);
+
+  useEffect(() => {
+    void refreshShellData();
+  }, [authSession.isAuthenticated]);
 
   if (!entryReady) {
     return <main className="auth-shell"><section className="panel auth-panel"><p>{t("common.loading")}</p></section></main>;
@@ -581,7 +434,8 @@ function AppRoutes(): JSX.Element {
   const shellContext: ShellContextState = {
     shellState,
     recentBooksets,
-    refreshShellData
+    refreshShellData,
+    authSession
   };
 
   return (
@@ -589,22 +443,34 @@ function AppRoutes(): JSX.Element {
       <Route path="/" element={<EntryRoute mode={entryState.mode} />} />
       <Route
         path="/auth/login"
-        element={<LoginFlowPage hasDatabase={entryState.hasDatabase} />}
+        element={
+          <LoginFlowPage
+            hasDatabase={entryState.hasDatabase}
+            onLoginSuccess={async () => {
+              await refreshAuthSession();
+            }}
+          />
+        }
       />
-      <Route
-        path="/auth/init"
-        element={<InitWizardPage hasDatabase={entryState.hasDatabase} />}
-      />
-      <Route
-        path="/auth/recover"
-        element={<RecoverFlowPage hasDatabase={entryState.hasDatabase} />}
-      />
+      <Route path="/auth/init" element={<InitWizardPage hasDatabase={entryState.hasDatabase} />} />
+      <Route path="/auth/recover" element={<RecoverFlowPage hasDatabase={entryState.hasDatabase} />} />
 
-      <Route path="/app" element={<ShellLayout {...shellContext} />}>
+      <Route
+        path="/app"
+        element={
+          authSession.isAuthenticated ? (
+            <ShellLayout {...shellContext} onLogout={onLogout} />
+          ) : (
+            <Navigate to="/auth/login" replace />
+          )
+        }
+      >
         <Route index element={<Navigate to="home" replace />} />
         <Route path="home" element={<HomePage {...shellContext} />} />
+        <Route path="settings/security" element={<RoutedModulePage authSession={authSession} />} />
+        <Route path="settings/system" element={<RoutedModulePage authSession={authSession} />} />
         {allNavItems.map((item) => (
-          <Route key={item.key} path={item.path.replace("/app/", "")} element={<RoutedModulePage />} />
+          <Route key={item.key} path={item.path.replace("/app/", "")} element={<RoutedModulePage authSession={authSession} />} />
         ))}
         <Route path="*" element={<PlaceholderPage title={t("common.notFound")} description={t("common.unknownAppRoute")} />} />
       </Route>

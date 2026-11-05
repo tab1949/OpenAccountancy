@@ -3,6 +3,7 @@ import path from "node:path";
 import { createHash, randomBytes } from "node:crypto";
 import Database from "better-sqlite3";
 import type {
+  BooksetSummary,
   CreateUserPayload,
   InitSystemPayload,
   PermissionCode,
@@ -31,6 +32,16 @@ interface AuthenticatedUser {
   displayName: string;
   role: UserRole;
   permissions: PermissionCode[];
+}
+
+interface DbBooksetRow {
+  id: number;
+  name: string;
+  fiscal_period: string;
+  file_path: string;
+  status: "open" | "closed";
+  created_at: string;
+  last_opened_at: string | null;
 }
 
 interface LoginOutcome {
@@ -132,7 +143,25 @@ export class DatabaseService {
         status TEXT NOT NULL,
         last_opened_at TEXT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS booksets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        fiscal_period TEXT NOT NULL,
+        book_code TEXT,
+        file_path TEXT NOT NULL UNIQUE,
+        status TEXT NOT NULL DEFAULT 'closed' CHECK (status IN ('open', 'closed')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        last_opened_at TEXT
+      );
     `);
+
+    const booksetColumns = this.db.prepare("PRAGMA table_info(booksets)").all() as Array<{ name: string }>;
+    if (!booksetColumns.some((column) => column.name === "book_code")) {
+      this.db.exec("ALTER TABLE booksets ADD COLUMN book_code TEXT");
+    }
+    this.db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_booksets_book_code ON booksets(book_code) WHERE book_code IS NOT NULL");
 
     const nowIso = new Date().toISOString();
     this.db
@@ -716,21 +745,175 @@ export class DatabaseService {
       .run(name, period, new Date().toISOString());
   }
 
+  private mapBooksetRow(row: DbBooksetRow): BooksetSummary {
+    return {
+      id: row.id,
+      name: row.name,
+      fiscalPeriod: row.fiscal_period,
+      filePath: row.file_path,
+      status: row.status,
+      createdAt: row.created_at,
+      lastOpenedAt: row.last_opened_at
+    };
+  }
+
+  public getBooksetById(booksetId: number): BooksetSummary | null {
+    const row = this.db
+      .prepare(
+        `
+          SELECT id, name, fiscal_period, file_path, status, created_at, last_opened_at
+          FROM booksets
+          WHERE id = ?
+        `
+      )
+      .get(booksetId) as DbBooksetRow | undefined;
+
+    return row ? this.mapBooksetRow(row) : null;
+  }
+
+  public getBooksetByPath(filePath: string): BooksetSummary | null {
+    const row = this.db
+      .prepare(
+        `
+          SELECT id, name, fiscal_period, file_path, status, created_at, last_opened_at
+          FROM booksets
+          WHERE file_path = ?
+        `
+      )
+      .get(filePath) as DbBooksetRow | undefined;
+
+    return row ? this.mapBooksetRow(row) : null;
+  }
+
+  public isBookCodeInUse(bookCode: string): boolean {
+    const row = this.db.prepare("SELECT 1 FROM booksets WHERE book_code = ? LIMIT 1").get(bookCode);
+    return row !== undefined;
+  }
+
+  public listBooksets(): BooksetSummary[] {
+    const rows = this.db
+      .prepare(
+        `
+          SELECT id, name, fiscal_period, file_path, status, created_at, last_opened_at
+          FROM booksets
+          ORDER BY datetime(created_at) DESC, id DESC
+        `
+      )
+      .all() as DbBooksetRow[];
+
+    return rows.map((row) => this.mapBooksetRow(row));
+  }
+
+  public registerBookset(name: string, fiscalPeriod: string, filePath: string, bookCode?: string): BooksetSummary {
+    const now = this.now();
+
+    this.db
+      .prepare(
+        `
+          INSERT INTO booksets (name, fiscal_period, book_code, file_path, status, created_at, updated_at)
+          VALUES (?, ?, ?, ?, 'closed', ?, ?)
+          ON CONFLICT(file_path)
+          DO UPDATE SET
+            name = excluded.name,
+            fiscal_period = excluded.fiscal_period,
+            book_code = COALESCE(excluded.book_code, booksets.book_code),
+            updated_at = excluded.updated_at
+        `
+      )
+      .run(name, fiscalPeriod, bookCode ?? null, filePath, now, now);
+
+    const row = this.db
+      .prepare(
+        `
+          SELECT id, name, fiscal_period, file_path, status, created_at, last_opened_at
+          FROM booksets
+          WHERE file_path = ?
+        `
+      )
+      .get(filePath) as DbBooksetRow;
+
+    return this.mapBooksetRow(row);
+  }
+
+  public openBooksetById(booksetId: number): BooksetSummary | null {
+    const target = this.getBooksetById(booksetId);
+    if (!target) {
+      return null;
+    }
+
+    const now = this.now();
+    const tx = this.db.transaction(() => {
+      this.db.prepare("UPDATE booksets SET status = 'closed', updated_at = ? WHERE status = 'open'").run(now);
+      this.db
+        .prepare(
+          `
+            UPDATE booksets
+            SET status = 'open', updated_at = ?, last_opened_at = ?
+            WHERE id = ?
+          `
+        )
+        .run(now, now, booksetId);
+    });
+    tx();
+
+    return this.getBooksetById(booksetId);
+  }
+
+  public closeBooksetById(booksetId: number): void {
+    this.db
+      .prepare(
+        `
+          UPDATE booksets
+          SET status = 'closed', updated_at = ?
+          WHERE id = ?
+        `
+      )
+      .run(this.now(), booksetId);
+  }
+
+  public deleteBooksetRecord(booksetId: number): void {
+    this.db.prepare("DELETE FROM booksets WHERE id = ?").run(booksetId);
+  }
+
+  public updateBooksetDisplay(booksetId: number, name: string, fiscalPeriod: string): void {
+    this.db.prepare("UPDATE booksets SET name = ?, fiscal_period = ?, updated_at = ? WHERE id = ?")
+      .run(name, fiscalPeriod, this.now(), booksetId);
+  }
+
+  public getOpenedBookset(): BooksetSummary | null {
+    const row = this.db
+      .prepare(
+        `
+          SELECT id, name, fiscal_period, file_path, status, created_at, last_opened_at
+          FROM booksets
+          WHERE status = 'open'
+          ORDER BY datetime(updated_at) DESC, id DESC
+          LIMIT 1
+        `
+      )
+      .get() as DbBooksetRow | undefined;
+
+    return row ? this.mapBooksetRow(row) : null;
+  }
+
   public listRecentBooksets(limit = 10): RecentBookset[] {
-    return this.db
+    const rows = this.db
       .prepare(
         `
           SELECT
             id,
             name,
-            period,
+            fiscal_period AS period,
             status,
             last_opened_at AS lastOpenedAt
-          FROM recent_booksets
-          ORDER BY datetime(last_opened_at) DESC
+          FROM booksets
+          WHERE last_opened_at IS NOT NULL
+          ORDER BY datetime(last_opened_at) DESC, id DESC
           LIMIT ?
         `
       )
       .all(limit) as RecentBookset[];
+
+    return rows;
   }
 }

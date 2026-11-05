@@ -24,13 +24,18 @@ export const navSections: NavSection[] = [
     labelKey: "nav.section.voucher",
     groups: [
       {
-        key: "voucher-main",
-        labelKey: "nav.group.voucherMain",
+        key: "voucher-management",
+        labelKey: "nav.group.voucherManagement",
         items: [
           { key: "voucher-fill", labelKey: "nav.item.voucherFill", path: "/app/voucher/fill", descriptionKey: "nav.desc.voucherFill", requiresBookset: true },
-          { key: "voucher-query", labelKey: "nav.item.voucherQuery", path: "/app/voucher/query", descriptionKey: "nav.desc.voucherQuery", requiresBookset: true },
-          { key: "voucher-review", labelKey: "nav.item.voucherReview", path: "/app/voucher/review", descriptionKey: "nav.desc.voucherReview", requiresBookset: true },
-          { key: "voucher-post", labelKey: "nav.item.voucherPost", path: "/app/voucher/post", descriptionKey: "nav.desc.voucherPost", requiresBookset: true }
+          { key: "voucher-query", labelKey: "nav.item.voucherQuery", path: "/app/voucher/query", descriptionKey: "nav.desc.voucherQuery", requiresBookset: true }
+        ]
+      },
+      {
+        key: "bookkeeping",
+        labelKey: "nav.group.bookkeeping",
+        items: [
+          { key: "bookkeeping-run", labelKey: "nav.item.bookkeepingRun", path: "/app/period-end/bookkeeping", descriptionKey: "nav.desc.bookkeepingRun", requiresBookset: true }
         ]
       }
     ]
@@ -91,7 +96,6 @@ export const navSections: NavSection[] = [
         key: "period-end-process",
         labelKey: "nav.group.periodEndProcess",
         items: [
-          { key: "bookkeeping-run", labelKey: "nav.item.bookkeepingRun", path: "/app/period-end/bookkeeping", descriptionKey: "nav.desc.bookkeepingRun", requiresBookset: true },
           { key: "bookkeeping-carry-custom", labelKey: "nav.item.bookkeepingCarryCustom", path: "/app/period-end/carry-custom", descriptionKey: "nav.desc.bookkeepingCarryCustom", requiresBookset: true },
           { key: "bookkeeping-carry-cogs", labelKey: "nav.item.bookkeepingCarryCogs", path: "/app/period-end/carry-cogs", descriptionKey: "nav.desc.bookkeepingCarryCogs", requiresBookset: true },
           { key: "bookkeeping-carry-pl", labelKey: "nav.item.bookkeepingCarryPl", path: "/app/period-end/carry-pl", descriptionKey: "nav.desc.bookkeepingCarryPl", requiresBookset: true }

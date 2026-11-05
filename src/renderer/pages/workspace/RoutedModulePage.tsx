@@ -5,8 +5,18 @@ import { PlaceholderPage } from "@renderer/components/PlaceholderPage";
 import { allNavItems } from "@renderer/config/navigation";
 import { canAccessPath } from "./permissions";
 import { UserManagementPage } from "./UserManagementPage";
+import { BookkeepingPage } from "./BookkeepingPage";
+import { VoucherFillPage } from "./VoucherFillPage";
+import { VoucherQueryPage } from "./VoucherQueryPage";
+import { BooksetSettingsPage } from "./BooksetSettingsPage";
+import type { BooksetOperationType } from "@renderer/components/BooksetOperationModal";
+import type { ShellContextState } from "./types";
 
-export function RoutedModulePage({ authSession }: { authSession: AuthSession }): JSX.Element {
+export function RoutedModulePage({
+  authSession,
+  onOpenBooksetOperation,
+  refreshShellData
+}: { authSession: AuthSession; onOpenBooksetOperation: (operation: BooksetOperationType) => void; refreshShellData: ShellContextState["refreshShellData"] }): JSX.Element {
   const { t } = useTranslation();
   const location = useLocation();
 
@@ -18,8 +28,24 @@ export function RoutedModulePage({ authSession }: { authSession: AuthSession }):
     return <UserManagementPage authSession={authSession} />;
   }
 
+  if (location.pathname === "/app/settings/bookset") {
+    return <BooksetSettingsPage authSession={authSession} onOpenBooksetOperation={onOpenBooksetOperation} refreshShellData={refreshShellData} />;
+  }
+
   if (location.pathname === "/app/settings/system") {
     return <PlaceholderPage title={t("nav.item.settingsSystem")} description={t("nav.desc.settingsSystem")} />;
+  }
+
+  if (location.pathname === "/app/voucher/fill") {
+    return <VoucherFillPage />;
+  }
+
+  if (location.pathname === "/app/voucher/query") {
+    return <VoucherQueryPage />;
+  }
+
+  if (location.pathname === "/app/period-end/bookkeeping") {
+    return <BookkeepingPage />;
   }
 
   const match = allNavItems.find((item) => location.pathname === item.path);

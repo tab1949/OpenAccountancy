@@ -1,14 +1,24 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type {
+  BackupBooksetPayload,
+  BookkeepingPayload,
+  CreateBooksetPayload,
   ChangeOwnPasswordPayload,
   CreateUserPayload,
   DeleteUserPayload,
+  ExportBooksetPackagePayload,
   InitSystemPayload,
+  ImportBooksetPackagePayload,
   LoginPayload,
+  OpenBooksetByIdPayload,
   OpenAccountancyApi,
-  OpenBooksetPayload,
   RecoverAccountPayload,
-  UpdateUserPayload
+  RestoreBooksetBackupPayload,
+  SaveBooksetSettingsPayload,
+  UpdateUserPayload,
+  UpdateFiscalPeriodPayload,
+  VoucherInput,
+  VoucherSearchPayload
 } from "../common/contracts";
 
 const api: OpenAccountancyApi = {
@@ -27,10 +37,32 @@ const api: OpenAccountancyApi = {
   updateUser: (payload: UpdateUserPayload) => ipcRenderer.invoke("user:update", payload),
   deleteUser: (payload: DeleteUserPayload) => ipcRenderer.invoke("user:delete", payload),
   getShellState: () => ipcRenderer.invoke("app:shell-state"),
-  openMockBookset: (payload: OpenBooksetPayload) =>
-    ipcRenderer.invoke("bookset:open", payload),
+  listBooksets: () => ipcRenderer.invoke("bookset:list"),
+  createBookset: (payload: CreateBooksetPayload) => ipcRenderer.invoke("bookset:create", payload),
+  getBooksetSettings: () => ipcRenderer.invoke("bookset-settings:get"),
+  saveBooksetSettings: (payload: SaveBooksetSettingsPayload) => ipcRenderer.invoke("bookset-settings:save", payload),
+  updateFiscalPeriod: (payload: UpdateFiscalPeriodPayload) => ipcRenderer.invoke("bookset-settings:update-period", payload),
+  addFiscalYear: (year: number) => ipcRenderer.invoke("bookset-settings:add-year", year),
+  closeFiscalPeriod: (year: number, periodNo: number) => ipcRenderer.invoke("bookset-settings:close-period", year, periodNo),
+  reinitializeBookset: () => ipcRenderer.invoke("bookset:reinitialize"),
+  openBookset: (payload: OpenBooksetByIdPayload) => ipcRenderer.invoke("bookset:open", payload),
   closeBookset: () => ipcRenderer.invoke("bookset:close"),
-  getRecentBooksets: () => ipcRenderer.invoke("bookset:recent")
+  importBooksetPackage: (payload: ImportBooksetPackagePayload) => ipcRenderer.invoke("bookset:import-package", payload),
+  exportBooksetPackage: (payload: ExportBooksetPackagePayload) => ipcRenderer.invoke("bookset:export-package", payload),
+  backupBookset: (payload: BackupBooksetPayload) => ipcRenderer.invoke("bookset:backup", payload),
+  restoreBooksetBackup: (payload: RestoreBooksetBackupPayload) => ipcRenderer.invoke("bookset:restore-backup", payload),
+  pickDirectory: () => ipcRenderer.invoke("dialog:pick-directory"),
+  pickPackageFile: () => ipcRenderer.invoke("dialog:pick-package-file"),
+  pickPackageSavePath: (defaultFileName: string) => ipcRenderer.invoke("dialog:pick-package-save-path", defaultFileName),
+  getRecentBooksets: () => ipcRenderer.invoke("bookset:recent"),
+  listVoucherAccounts: (keyword?: string) => ipcRenderer.invoke("voucher:accounts", keyword),
+  getVoucherDetailSuggestions: (accountCode: string) => ipcRenderer.invoke("voucher:detail-suggestions", accountCode),
+  pickVoucherAttachments: () => ipcRenderer.invoke("dialog:pick-voucher-attachments"),
+  searchVouchers: (payload: VoucherSearchPayload) => ipcRenderer.invoke("voucher:search", payload),
+  getVoucher: (voucherId: number) => ipcRenderer.invoke("voucher:get", voucherId),
+  saveVoucher: (payload: VoucherInput, confirmUnpost?: boolean) => ipcRenderer.invoke("voucher:save", payload, confirmUnpost),
+  deleteVoucher: (voucherId: number, confirmUnpost?: boolean) => ipcRenderer.invoke("voucher:delete", voucherId, confirmUnpost),
+  postVouchers: (payload: BookkeepingPayload) => ipcRenderer.invoke("voucher:post", payload)
 };
 
 contextBridge.exposeInMainWorld("openAccountancy", api);

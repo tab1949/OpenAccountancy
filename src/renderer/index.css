@@ -421,6 +421,593 @@ a:hover {
 	background: #fff;
 }
 
+.recent-bookset-item-btn {
+	width: 100%;
+	border: none;
+	background: transparent;
+	padding: 0;
+	display: grid;
+	gap: 4px;
+	text-align: left;
+	cursor: pointer;
+	color: inherit;
+}
+
+.recent-bookset-item-btn:disabled {
+	cursor: wait;
+	opacity: 0.75;
+}
+
+.voucher-editor,
+.voucher-query-page {
+	display: grid;
+	gap: 12px;
+}
+
+.voucher-editor-header,
+.voucher-results-heading,
+.voucher-detail-heading,
+.voucher-bookkeeping-toolbar {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
+}
+
+.voucher-editor-header h2,
+.voucher-results-heading h2,
+.voucher-detail-heading h2,
+.voucher-bookkeeping-toolbar h2 {
+	margin: 0;
+	font-size: 18px;
+}
+
+.voucher-editor-header p,
+.voucher-detail-heading p,
+.voucher-bookkeeping-toolbar p {
+	margin: 5px 0 0;
+	color: #637484;
+	font-size: 13px;
+}
+
+.voucher-meta-row {
+	display: flex;
+	align-items: end;
+	flex-wrap: wrap;
+	gap: 12px;
+	padding: 10px 12px;
+	background: #f3f6f8;
+	border: 1px solid #d5dde4;
+	border-radius: 8px;
+}
+
+.voucher-meta-row label,
+.voucher-filter-grid label {
+	display: grid;
+	gap: 5px;
+	font-size: 12px;
+	color: #425363;
+}
+
+.voucher-meta-row input,
+.voucher-filter-grid input,
+.voucher-filter-grid select {
+	min-height: 34px;
+	border: 1px solid #bac6d0;
+	border-radius: 6px;
+	padding: 5px 8px;
+	background: #fff;
+}
+
+.voucher-table-scroll,
+.voucher-result-scroll {
+	overflow: auto;
+	max-width: 100%;
+}
+
+.voucher-table-scroll {
+	max-height: min(58vh, 620px);
+	border: 1px solid #ccd6df;
+	border-radius: 8px;
+	background: #fff;
+}
+
+.voucher-entry-table,
+.voucher-result-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 13px;
+}
+
+.voucher-entry-table {
+	min-width: 920px;
+}
+
+.voucher-entry-table th,
+.voucher-entry-table td,
+.voucher-result-table th,
+.voucher-result-table td {
+	border-bottom: 1px solid #e4e9ed;
+	border-right: 1px solid #e4e9ed;
+	padding: 7px;
+	text-align: left;
+}
+
+.voucher-entry-table th,
+.voucher-result-table th {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	background: #edf2f5;
+	color: #34495a;
+	white-space: nowrap;
+}
+
+.voucher-entry-table td:first-child,
+.voucher-entry-table tfoot th {
+	text-align: center;
+}
+
+.voucher-entry-table input,
+.voucher-entry-table select {
+	width: 100%;
+	min-width: 90px;
+	height: 34px;
+	border: 1px solid #c1ccd5;
+	border-radius: 5px;
+	padding: 4px 6px;
+	background: #fff;
+}
+
+.voucher-entry-table input:disabled,
+.voucher-entry-table select:disabled {
+	background: #f0f2f4;
+	color: #788692;
+}
+
+.voucher-account-cell {
+	position: relative;
+	min-width: 185px;
+}
+
+.voucher-detail-cell {
+	position: relative;
+	min-width: 170px;
+}
+
+.voucher-account-options {
+	position: absolute;
+	top: calc(100% - 4px);
+	left: 4px;
+	right: 4px;
+	max-height: 220px;
+	overflow: auto;
+	z-index: 5;
+	padding: 4px;
+	border: 1px solid #bac6d0;
+	border-radius: 6px;
+	background: white;
+	box-shadow: 0 8px 18px rgba(27, 45, 59, 0.16);
+}
+
+.voucher-account-options button {
+	width: 100%;
+	display: flex;
+	gap: 10px;
+	border: 0;
+	padding: 7px;
+	background: transparent;
+	text-align: left;
+	cursor: pointer;
+}
+
+.voucher-account-options button:hover {
+	background: #edf3f6;
+}
+
+.voucher-detail-options {
+	position: absolute;
+	top: calc(100% - 4px);
+	left: 4px;
+	right: 4px;
+	max-height: 220px;
+	overflow: auto;
+	z-index: 5;
+	padding: 4px;
+	border: 1px solid #bac6d0;
+	border-radius: 6px;
+	background: #fff;
+	box-shadow: 0 8px 18px rgba(27, 45, 59, 0.16);
+}
+
+.voucher-detail-options button {
+	width: 100%;
+	display: block;
+	border: 0;
+	padding: 7px;
+	background: transparent;
+	color: #273949;
+	text-align: left;
+	cursor: pointer;
+}
+
+.voucher-detail-options button:hover,
+.voucher-detail-options button[aria-selected="true"] {
+	background: #edf3f6;
+}
+
+.voucher-no-options {
+	display: block;
+	padding: 8px;
+	color: #6b7781;
+}
+
+.voucher-entry-table tfoot th {
+	position: static;
+	background: #f2f5f7;
+}
+
+.voucher-uppercase {
+	display: inline-block;
+	margin-left: 12px;
+	color: #263d4d;
+	font-weight: 500;
+}
+
+.voucher-warning {
+	margin: 0;
+	color: #b42318;
+	font-weight: 600;
+}
+
+.voucher-attachment-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.voucher-attachment-list li {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 5px 8px;
+	border: 1px solid #d3dce3;
+	border-radius: 5px;
+	background: #f8fafb;
+	font-size: 12px;
+}
+
+.voucher-attachment-list button,
+.link-button {
+	border: 0;
+	padding: 2px 4px;
+	background: transparent;
+	color: #145b75;
+	cursor: pointer;
+}
+
+.voucher-editor-actions {
+	justify-content: flex-end;
+}
+
+.voucher-filter-panel {
+	padding: 12px;
+}
+
+.voucher-filter-grid {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(120px, 1fr));
+	align-items: end;
+	gap: 10px;
+}
+
+.voucher-keyword-field {
+	grid-column: span 2;
+}
+
+.voucher-results-panel {
+	min-height: 220px;
+}
+
+.voucher-results-heading {
+	margin-bottom: 10px;
+}
+
+.voucher-results-heading span,
+.voucher-detail-heading > span {
+	color: #607181;
+	font-size: 13px;
+}
+
+.voucher-result-table th button {
+	border: 0;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	padding: 0;
+	cursor: pointer;
+}
+
+.voucher-result-table tbody tr:hover {
+	background: #f5f8fa;
+}
+
+.voucher-empty-state {
+	padding: 28px !important;
+	text-align: center !important;
+	color: #788692;
+}
+
+.voucher-detail-modal {
+	width: min(1000px, 100%);
+}
+
+.voucher-readonly-table {
+	min-width: 760px;
+}
+
+.voucher-readonly-table input,
+.voucher-readonly-table select {
+	border: 0;
+}
+
+.btn-danger {
+	border-color: #b5473c;
+	background: #b5473c;
+	color: #fff;
+}
+
+.btn-danger:hover {
+	background: #963b33;
+}
+
+.bookset-settings-layout {
+	min-height: 620px;
+	display: grid;
+	grid-template-columns: 220px minmax(0, 1fr);
+	background: #f9fbfc;
+	border: 1px solid #d1d9e0;
+	border-radius: 8px;
+	overflow: hidden;
+}
+
+.bookset-settings-nav {
+	padding: 12px 8px;
+	background: #e7ecef;
+	border-right: 1px solid #cbd4db;
+	display: grid;
+	align-content: start;
+	gap: 4px;
+}
+
+.bookset-settings-nav button {
+	min-height: 42px;
+	border: 0;
+	border-left: 3px solid transparent;
+	padding: 9px 10px;
+	background: transparent;
+	text-align: left;
+	color: #344656;
+	cursor: pointer;
+}
+
+.bookset-settings-nav button:hover {
+	background: #dce4e9;
+}
+
+.bookset-settings-nav .bookset-settings-nav-active {
+	border-left-color: #34745f;
+	background: #fff;
+	color: #1d4b3b;
+	font-weight: 700;
+}
+
+.bookset-settings-content {
+	min-width: 0;
+	padding: 18px;
+	display: grid;
+	align-content: start;
+	gap: 14px;
+}
+
+.bookset-settings-heading {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	border-bottom: 1px solid #dce3e8;
+	padding-bottom: 12px;
+}
+
+.bookset-settings-heading h2,
+.settings-subsection h3 {
+	margin: 0;
+	font-size: 17px;
+}
+
+.bookset-settings-heading p,
+.settings-subsection > p {
+	margin: 5px 0 0;
+	color: #647584;
+	font-size: 13px;
+}
+
+.bookset-setting-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+}
+
+.bookset-setting-grid label,
+.settings-inline-form label,
+.account-structure-editor label {
+	display: grid;
+	gap: 5px;
+	font-size: 13px;
+	color: #435463;
+}
+
+.bookset-setting-grid input,
+.bookset-setting-grid textarea,
+.settings-inline-form input,
+.account-structure-editor input {
+	width: 100%;
+	min-height: 36px;
+	border: 1px solid #bec9d1;
+	border-radius: 6px;
+	padding: 7px 9px;
+	font: inherit;
+}
+
+.bookset-setting-grid textarea {
+	resize: vertical;
+}
+
+.settings-wide-field {
+	grid-column: 1 / -1;
+}
+
+.bookset-readonly-identifiers {
+	grid-column: 1 / -1;
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 8px;
+	margin-top: 4px;
+}
+
+.bookset-readonly-identifiers div {
+	min-width: 0;
+	padding: 10px;
+	border: 1px solid #d5dee4;
+	background: #f1f5f7;
+	border-radius: 6px;
+	display: grid;
+	gap: 4px;
+}
+
+.bookset-readonly-identifiers small {
+	color: #6a7884;
+}
+
+.bookset-readonly-identifiers strong {
+	word-break: break-word;
+}
+
+.bookset-setting-stack {
+	display: grid;
+	gap: 14px;
+}
+
+.settings-subsection {
+	padding: 14px;
+	border: 1px solid #d6dfe5;
+	border-radius: 6px;
+	background: #fff;
+	display: grid;
+	gap: 12px;
+}
+
+.settings-toggle {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 32px;
+	font-size: 14px;
+}
+
+.settings-inline-form,
+.account-structure-editor {
+	display: flex;
+	align-items: end;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+.settings-inline-form label {
+	width: 160px;
+}
+
+.account-structure-editor label {
+	width: 145px;
+}
+
+.settings-path-control {
+	display: flex;
+	gap: 7px;
+}
+
+.settings-path-control input {
+	min-width: 0;
+}
+
+.settings-danger-zone {
+	border-color: #ddb8b4;
+	background: #fffafa;
+}
+
+@media (max-width: 900px) {
+	.bookset-settings-layout {
+		grid-template-columns: 1fr;
+	}
+
+	.bookset-settings-nav {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		border-right: 0;
+		border-bottom: 1px solid #cbd4db;
+	}
+
+	.bookset-readonly-identifiers {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 560px) {
+	.bookset-setting-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.settings-wide-field {
+		grid-column: span 1;
+	}
+
+	.bookset-readonly-identifiers {
+		grid-template-columns: 1fr;
+	}
+
+	.bookset-settings-content {
+		padding: 12px;
+	}
+}
+
+@media (max-width: 900px) {
+	.voucher-filter-grid {
+		grid-template-columns: repeat(2, minmax(120px, 1fr));
+	}
+
+	.voucher-keyword-field {
+		grid-column: span 2;
+	}
+}
+
+@media (max-width: 560px) {
+	.voucher-filter-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.voucher-keyword-field {
+		grid-column: span 1;
+	}
+
+	.voucher-bookkeeping-toolbar,
+	.voucher-editor-header {
+		align-items: stretch;
+		flex-direction: column;
+	}
+}
+
 .auth-shell {
 	min-height: 100vh;
 	display: grid;

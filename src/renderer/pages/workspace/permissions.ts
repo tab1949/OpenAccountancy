@@ -1,10 +1,6 @@
 import type { AuthSession, PermissionCode, UserSummary } from "@common/contracts";
 
 const navPermissionMap: Partial<Record<string, PermissionCode[]>> = {
-  "/app/voucher/fill": ["create_voucher"],
-  "/app/voucher/query": ["query_voucher"],
-  "/app/voucher/review": ["query_voucher"],
-  "/app/voucher/post": ["update_voucher"]
 };
 
 export function hasPermission(authSession: AuthSession, permission: PermissionCode): boolean {

@@ -47,7 +47,10 @@ const zhCN = {
     description: "请先打开一个账套，或新建/导入账套。当前页面为依据需求文档搭建的应用框架。",
     openBookset: "打开账套",
     createBookset: "新建账套",
+    closeBookset: "关闭账套",
     importBookset: "导入账套",
+    exportBookset: "导出账套",
+    backupBookset: "备份账套",
     restoreBackup: "恢复备份",
     recentBooksets: "最近账套",
     noRecentBookset: "暂无最近账套。",
@@ -75,6 +78,8 @@ const zhCN = {
     switchBookset: "切换账套",
     exportBookset: "导出账套",
     importBookset: "导入账套",
+    backupBookset: "备份账套",
+    restoreBackupBookset: "恢复备份",
     paramSettings: "参数设置",
     recentBooksetSearch: "最近账套",
     todoPanel: "待办",
@@ -84,9 +89,7 @@ const zhCN = {
     todoBankReconcile: "银行未对账",
     todoBackup: "备份提醒",
     todoSystemMsg: "系统消息",
-    openMockBookset: "打开演示账套",
-    closeBookset: "关闭账套",
-    mockCompanyName: "示例有限公司"
+    closeBookset: "关闭账套"
   },
   placeholder: {
     frameworkReady: "框架已就绪",
@@ -105,6 +108,8 @@ const zhCN = {
     },
     group: {
       voucherMain: "凭证业务",
+      voucherManagement: "凭证管理",
+      bookkeeping: "记账",
       ledgerBooks: "账簿查询",
       contactsArAp: "应收应付与核销",
       cashierDaily: "出纳日常",
@@ -143,8 +148,8 @@ const zhCN = {
       settingsSystem: "系统偏好"
     },
     desc: {
-      voucherFill: "凭证填制工作台",
-      voucherQuery: "凭证查询中心",
+      voucherFill: "录入 11 行记账凭证，校验借贷平衡并保存",
+      voucherQuery: "按日期、凭证号或摘要检索并维护凭证",
       voucherReview: "凭证审核队列",
       voucherPost: "凭证过账中心",
       contactsAr: "应收款管理与跟踪",
@@ -155,7 +160,7 @@ const zhCN = {
       cashierBankJournal: "银行存款日记账维护",
       cashierBankReconcile: "银行对账作业",
       cashierBalanceSheet: "余额调节表生成",
-      bookkeepingRun: "常规记账操作",
+      bookkeepingRun: "将已保存的凭证记入账簿",
       bookkeepingCarryCustom: "自定义结转流程",
       bookkeepingCarryCogs: "销售成本结转流程",
       bookkeepingCarryPl: "期间损益结转流程",

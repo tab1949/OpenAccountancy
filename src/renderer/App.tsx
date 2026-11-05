@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { HashRouter, Link, NavLink, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { AppShellState, AuthSession, RecentBookset, SystemEntryState } from "../common/contracts";
+import { BooksetOperationModal, type BooksetOperationType } from "./components/BooksetOperationModal";
 import { PlaceholderPage } from "./components/PlaceholderPage";
 import { allNavItems, navSections } from "./config/navigation";
 import { EntryRoute } from "./pages/auth/EntryRoute";
@@ -116,8 +117,9 @@ function ShellLayout({
   recentBooksets,
   refreshShellData,
   authSession,
-  onLogout
-}: ShellContextState & { onLogout: () => Promise<void> }): JSX.Element {
+  onLogout,
+  onOpenBooksetOperation
+}: ShellContextState & { onLogout: () => Promise<void>; onOpenBooksetOperation: (operation: BooksetOperationType) => void }): JSX.Element {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
@@ -193,12 +195,13 @@ function ShellLayout({
   const selectedSection = navSections.find((section) => section.key === selectedPrimaryKey) ?? navSections[0];
 
   const booksetMenuItems: ToolbarMenuItem[] = [
-    { key: "new", label: t("shell.newBookset") },
-    { key: "open", label: t("shell.openBookset") },
-    { key: "close", label: t("shell.closeBookset") },
-    ...(shellState.hasOpenedBookset ? [{ key: "switch", label: t("shell.switchBookset") }] : []),
-    { key: "export", label: t("shell.exportBookset") },
-    { key: "import", label: t("shell.importBookset") },
+    { key: "new", label: t("shell.newBookset"), onClick: () => onOpenBooksetOperation("create") },
+    { key: "open", label: t("shell.openBookset"), onClick: () => onOpenBooksetOperation("open") },
+    { key: "close", label: t("shell.closeBookset"), onClick: () => onOpenBooksetOperation("close") },
+    { key: "export", label: t("shell.exportBookset"), onClick: () => onOpenBooksetOperation("export") },
+    { key: "import", label: t("shell.importBookset"), onClick: () => onOpenBooksetOperation("import") },
+    { key: "backup", label: t("shell.backupBookset"), onClick: () => onOpenBooksetOperation("backup") },
+    { key: "restore", label: t("shell.restoreBackupBookset"), onClick: () => onOpenBooksetOperation("restore") },
     { key: "param", label: t("shell.paramSettings") },
     ...(!shellState.hasOpenedBookset ? [{ key: "recent", label: t("shell.recentBooksetSearch") }] : [])
   ];
@@ -223,19 +226,6 @@ function ShellLayout({
       }
     }
   ];
-
-  const openMockBookset = async (): Promise<void> => {
-    await window.openAccountancy.openMockBookset({
-      companyName: t("shell.mockCompanyName"),
-      fiscalPeriod: "2026年11期-未结账"
-    });
-    await refreshShellData();
-  };
-
-  const closeBookset = async (): Promise<void> => {
-    await window.openAccountancy.closeBookset();
-    await refreshShellData();
-  };
 
   return (
     <div className="app-shell">
@@ -276,12 +266,6 @@ function ShellLayout({
         </div>
 
         <div className="topbar-right">
-          <button className="btn btn-small" type="button" onClick={() => void openMockBookset()}>
-            {t("shell.openMockBookset")}
-          </button>
-          <button className="btn btn-small" type="button" onClick={() => void closeBookset()}>
-            {t("shell.closeBookset")}
-          </button>
           <ToolbarDropdown
             menuId="help"
             label={t("common.help")}
@@ -384,6 +368,7 @@ function AppRoutes(): JSX.Element {
   const [authSession, setAuthSession] = useState<AuthSession>(defaultAuthSession);
   const [shellState, setShellState] = useState<AppShellState>(defaultShellState);
   const [recentBooksets, setRecentBooksets] = useState<RecentBookset[]>([]);
+  const [booksetOperation, setBooksetOperation] = useState<BooksetOperationType | null>(null);
 
   const refreshEntryState = async (): Promise<void> => {
     const state = await window.openAccountancy.getSystemEntryState();
@@ -439,7 +424,8 @@ function AppRoutes(): JSX.Element {
   };
 
   return (
-    <Routes>
+    <>
+      <Routes>
       <Route path="/" element={<EntryRoute mode={entryState.mode} />} />
       <Route
         path="/auth/login"
@@ -459,24 +445,43 @@ function AppRoutes(): JSX.Element {
         path="/app"
         element={
           authSession.isAuthenticated ? (
-            <ShellLayout {...shellContext} onLogout={onLogout} />
+            <ShellLayout {...shellContext} onLogout={onLogout} onOpenBooksetOperation={setBooksetOperation} />
           ) : (
             <Navigate to="/auth/login" replace />
           )
         }
       >
         <Route index element={<Navigate to="home" replace />} />
-        <Route path="home" element={<HomePage {...shellContext} />} />
-        <Route path="settings/security" element={<RoutedModulePage authSession={authSession} />} />
-        <Route path="settings/system" element={<RoutedModulePage authSession={authSession} />} />
+        <Route
+          path="home"
+          element={
+            <HomePage
+              {...shellContext}
+              onOpenBooksetOperation={setBooksetOperation}
+            />
+          }
+        />
+        <Route path="settings/security" element={<RoutedModulePage authSession={authSession} onOpenBooksetOperation={setBooksetOperation} refreshShellData={refreshShellData} />} />
+        <Route path="settings/system" element={<RoutedModulePage authSession={authSession} onOpenBooksetOperation={setBooksetOperation} refreshShellData={refreshShellData} />} />
         {allNavItems.map((item) => (
-          <Route key={item.key} path={item.path.replace("/app/", "")} element={<RoutedModulePage authSession={authSession} />} />
+          <Route key={item.key} path={item.path.replace("/app/", "")} element={<RoutedModulePage authSession={authSession} onOpenBooksetOperation={setBooksetOperation} refreshShellData={refreshShellData} />} />
         ))}
         <Route path="*" element={<PlaceholderPage title={t("common.notFound")} description={t("common.unknownAppRoute")} />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/auth/login" replace />} />
-    </Routes>
+      </Routes>
+
+      {authSession.isAuthenticated && booksetOperation ? (
+        <BooksetOperationModal
+          operation={booksetOperation}
+          hasOpenedBookset={shellState.hasOpenedBookset}
+          currentBooksetLabel={shellState.activeBooksetLabel}
+          onClose={() => setBooksetOperation(null)}
+          onCompleted={refreshShellData}
+        />
+      ) : null}
+    </>
   );
 }
 

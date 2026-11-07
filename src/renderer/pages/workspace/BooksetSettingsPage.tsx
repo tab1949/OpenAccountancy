@@ -72,7 +72,10 @@ export function BooksetSettingsPage({
       };
       const result = await window.openAccountancy.saveBooksetSettings(payload);
       setMessage(result.message);
-      if (result.ok) await refresh();
+      if (result.ok) {
+        await refresh();
+        await refreshShellData();
+      }
     } finally {
       setSaving(false);
     }
@@ -108,6 +111,7 @@ export function BooksetSettingsPage({
     if (result.ok) {
       setEditingPeriod(null);
       await refresh();
+      await refreshShellData();
     }
   };
 
@@ -115,7 +119,10 @@ export function BooksetSettingsPage({
     if (!window.confirm(`确认结账 ${String(period.year).padStart(4, "0")} 年 ${String(period.periodNo).padStart(2, "0")} 期？结账后该期间不能修改。`)) return;
     const result = await window.openAccountancy.closeFiscalPeriod(period.year, period.periodNo);
     setMessage(result.message);
-    if (result.ok) await refresh();
+    if (result.ok) {
+      await refresh();
+      await refreshShellData();
+    }
   };
 
   const backupNow = async (): Promise<void> => {
@@ -139,7 +146,10 @@ export function BooksetSettingsPage({
     if (!window.confirm("恢复前系统将自动备份当前账套。确认继续恢复所选备份？")) return;
     const result = await window.openAccountancy.restoreBooksetBackup({ booksetId: active.id, packagePath: restorePath });
     setMessage(result.message);
-    if (result.ok) await refresh();
+    if (result.ok) {
+      await refresh();
+      await refreshShellData();
+    }
   };
 
   const reinitialize = async (): Promise<void> => {

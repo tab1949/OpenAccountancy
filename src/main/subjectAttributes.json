@@ -1,0 +1,1046 @@
+{
+  "ASBE_2006": {
+    "1001": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1002": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1003": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1011": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1012": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1013": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1021": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1031": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1101": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1111": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1112": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1121": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1122": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1123": {
+      "category": "资产",
+      "direction": "借或贷"
+    },
+    "1124": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1125": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1126": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1131": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1132": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1213": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1214": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1215": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1221": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1231": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1301": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1302": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1303": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1304": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1305": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1306": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1307": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1311": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1321": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1401": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1402": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1403": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1404": {
+      "category": "资产",
+      "direction": "借或贷"
+    },
+    "1405": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1406": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1407": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1408": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1411": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1421": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1422": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1431": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1441": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1442": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1461": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1471": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1481": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1482": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1489": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1491": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1492": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1493": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1494": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1495": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1501": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1502": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1503": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1504": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1511": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1512": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1515": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1518": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1521": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1522": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1523": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1531": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1532": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1541": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1551": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1552": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1601": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1602": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1603": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1604": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1605": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1606": {
+      "category": "资产",
+      "direction": "借或贷"
+    },
+    "1607": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1608": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1621": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1622": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1623": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1624": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1631": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1632": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1633": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1634": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1635": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1641": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1642": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1643": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1701": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1702": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1703": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1704": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1705": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1711": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1712": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1801": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1811": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1901": {
+      "category": "资产",
+      "direction": "借或贷"
+    },
+    "2001": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2002": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2003": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2004": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2011": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2012": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2021": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2101": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2111": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2201": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2202": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2203": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2204": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2211": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2221": {
+      "category": "负债",
+      "direction": "借或贷"
+    },
+    "2231": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2232": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2241": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2245": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2311": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2312": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2313": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2314": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2401": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2501": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2502": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2504": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2603": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2604": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2701": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2702": {
+      "category": "负债",
+      "direction": "借"
+    },
+    "2711": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2721": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2801": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2901": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "3001": {
+      "category": "共同",
+      "direction": "借或贷"
+    },
+    "3002": {
+      "category": "共同",
+      "direction": "借或贷"
+    },
+    "3101": {
+      "category": "共同",
+      "direction": "借或贷"
+    },
+    "3201": {
+      "category": "共同",
+      "direction": "借或贷"
+    },
+    "3202": {
+      "category": "共同",
+      "direction": "借或贷"
+    },
+    "3301": {
+      "category": "共同",
+      "direction": "借或贷"
+    },
+    "4001": {
+      "category": "所有者权益",
+      "direction": "贷"
+    },
+    "4002": {
+      "category": "所有者权益",
+      "direction": "贷"
+    },
+    "4101": {
+      "category": "所有者权益",
+      "direction": "贷"
+    },
+    "4102": {
+      "category": "所有者权益",
+      "direction": "贷"
+    },
+    "4103": {
+      "category": "所有者权益",
+      "direction": "借或贷"
+    },
+    "4104": {
+      "category": "所有者权益",
+      "direction": "借或贷"
+    },
+    "4201": {
+      "category": "所有者权益",
+      "direction": "借"
+    },
+    "4301": {
+      "category": "所有者权益",
+      "direction": "贷"
+    },
+    "4401": {
+      "category": "所有者权益",
+      "direction": "贷"
+    },
+    "4501": {
+      "category": "所有者权益",
+      "direction": "借或贷"
+    },
+    "5001": {
+      "category": "成本",
+      "direction": "借"
+    },
+    "5101": {
+      "category": "成本",
+      "direction": "借"
+    },
+    "5201": {
+      "category": "成本",
+      "direction": "借"
+    },
+    "5301": {
+      "category": "成本",
+      "direction": "借"
+    },
+    "6001": {
+      "category": "损益",
+      "direction": "贷"
+    },
+    "6011": {
+      "category": "损益",
+      "direction": "贷"
+    },
+    "6021": {
+      "category": "损益",
+      "direction": "贷"
+    },
+    "6032": {
+      "category": "损益",
+      "direction": "贷"
+    },
+    "6041": {
+      "category": "损益",
+      "direction": "贷"
+    },
+    "6051": {
+      "category": "损益",
+      "direction": "贷"
+    },
+    "6061": {
+      "category": "损益",
+      "direction": "借或贷"
+    },
+    "6071": {
+      "category": "损益",
+      "direction": "借或贷"
+    },
+    "6072": {
+      "category": "损益",
+      "direction": "借或贷"
+    },
+    "6101": {
+      "category": "损益",
+      "direction": "借或贷"
+    },
+    "6102": {
+      "category": "损益",
+      "direction": "借或贷"
+    },
+    "6103": {
+      "category": "损益",
+      "direction": "借或贷"
+    },
+    "6111": {
+      "category": "损益",
+      "direction": "借或贷"
+    },
+    "6115": {
+      "category": "损益",
+      "direction": "借或贷"
+    },
+    "6117": {
+      "category": "损益",
+      "direction": "贷"
+    },
+    "6301": {
+      "category": "损益",
+      "direction": "贷"
+    },
+    "6401": {
+      "category": "损益",
+      "direction": "借"
+    },
+    "6402": {
+      "category": "损益",
+      "direction": "借"
+    },
+    "6403": {
+      "category": "损益",
+      "direction": "借"
+    },
+    "6411": {
+      "category": "损益",
+      "direction": "借"
+    },
+    "6421": {
+      "category": "损益",
+      "direction": "借"
+    },
+    "6503": {
+      "category": "损益",
+      "direction": "借"
+    },
+    "6504": {
+      "category": "损益",
+      "direction": "借"
+    },
+    "6505": {
+      "category": "损益",
+      "direction": "借"
+    },
+    "6506": {
+      "category": "损益",
+      "direction": "贷"
+    },
+    "6507": {
+      "category": "损益",
+      "direction": "借"
+    },
+    "6601": {
+      "category": "损益",
+      "direction": "借"
+    },
+    "6602": {
+      "category": "损益",
+      "direction": "借"
+    },
+    "6603": {
+      "category": "损益",
+      "direction": "借"
+    },
+    "6604": {
+      "category": "损益",
+      "direction": "借"
+    },
+    "6605": {
+      "category": "损益",
+      "direction": "借"
+    },
+    "6701": {
+      "category": "损益",
+      "direction": "借"
+    },
+    "6702": {
+      "category": "损益",
+      "direction": "借"
+    },
+    "6711": {
+      "category": "损益",
+      "direction": "借"
+    },
+    "6801": {
+      "category": "损益",
+      "direction": "借"
+    },
+    "6901": {
+      "category": "损益",
+      "direction": "借或贷"
+    }
+  },
+  "SBE_2011": {
+    "1001": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1002": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1012": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1101": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1121": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1122": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1123": {
+      "category": "资产",
+      "direction": "借或贷"
+    },
+    "1131": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1132": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1221": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1401": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1402": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1403": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1404": {
+      "category": "资产",
+      "direction": "借或贷"
+    },
+    "1405": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1407": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1408": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1411": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1421": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1501": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1511": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1601": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1602": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1604": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1605": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1606": {
+      "category": "资产",
+      "direction": "借或贷"
+    },
+    "1621": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1622": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1701": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1702": {
+      "category": "资产",
+      "direction": "贷"
+    },
+    "1801": {
+      "category": "资产",
+      "direction": "借"
+    },
+    "1901": {
+      "category": "资产",
+      "direction": "借或贷"
+    },
+    "2001": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2201": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2202": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2203": {
+      "category": "负债",
+      "direction": "借或贷"
+    },
+    "2211": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2221": {
+      "category": "负债",
+      "direction": "借或贷"
+    },
+    "2231": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2232": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2241": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2401": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2501": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "2701": {
+      "category": "负债",
+      "direction": "贷"
+    },
+    "3001": {
+      "category": "所有者权益",
+      "direction": "贷"
+    },
+    "3002": {
+      "category": "所有者权益",
+      "direction": "贷"
+    },
+    "3101": {
+      "category": "所有者权益",
+      "direction": "贷"
+    },
+    "3103": {
+      "category": "所有者权益",
+      "direction": "借或贷"
+    },
+    "3104": {
+      "category": "所有者权益",
+      "direction": "借或贷"
+    },
+    "4001": {
+      "category": "成本",
+      "direction": "借"
+    },
+    "4101": {
+      "category": "成本",
+      "direction": "借"
+    },
+    "4301": {
+      "category": "成本",
+      "direction": "借"
+    },
+    "4401": {
+      "category": "成本",
+      "direction": "借"
+    },
+    "4403": {
+      "category": "成本",
+      "direction": "借"
+    },
+    "5001": {
+      "category": "损益",
+      "direction": "贷"
+    },
+    "5051": {
+      "category": "损益",
+      "direction": "贷"
+    },
+    "5111": {
+      "category": "损益",
+      "direction": "借或贷"
+    },
+    "5301": {
+      "category": "损益",
+      "direction": "贷"
+    },
+    "5401": {
+      "category": "损益",
+      "direction": "借"
+    },
+    "5402": {
+      "category": "损益",
+      "direction": "借"
+    },
+    "5403": {
+      "category": "损益",
+      "direction": "借"
+    },
+    "5601": {
+      "category": "损益",
+      "direction": "借"
+    },
+    "5602": {
+      "category": "损益",
+      "direction": "借"
+    },
+    "5603": {
+      "category": "损益",
+      "direction": "借"
+    },
+    "5711": {
+      "category": "损益",
+      "direction": "借"
+    },
+    "5801": {
+      "category": "损益",
+      "direction": "借"
+    }
+  }
+}

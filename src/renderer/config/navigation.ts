@@ -45,6 +45,13 @@ export const navSections: NavSection[] = [
     labelKey: "nav.section.ledger",
     groups: [
       {
+        key: "ledger-accounts",
+        labelKey: "nav.group.ledgerAccounts",
+        items: [
+          { key: "ledger-account-list", labelKey: "nav.item.ledgerAccountList", path: "/app/ledger/accounts", descriptionKey: "nav.desc.ledgerAccountList", requiresBookset: true }
+        ]
+      },
+      {
         key: "ledger-books",
         labelKey: "nav.group.ledgerBooks",
         items: [

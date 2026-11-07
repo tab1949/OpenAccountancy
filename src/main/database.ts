@@ -790,6 +790,11 @@ export class DatabaseService {
     return row !== undefined;
   }
 
+  public getBookCode(booksetId: number): string | null {
+    const row = this.db.prepare("SELECT book_code FROM booksets WHERE id = ?").get(booksetId) as { book_code: string | null } | undefined;
+    return row?.book_code ?? null;
+  }
+
   public listBooksets(): BooksetSummary[] {
     const rows = this.db
       .prepare(

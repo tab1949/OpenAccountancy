@@ -52,8 +52,9 @@ export function VoucherQueryPage(): JSX.Element {
   const [sortKey, setSortKey] = useState<SortKey>("voucherDate");
   const [sortAscending, setSortAscending] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [unposting, setUnposting] = useState(false);
 
-  const search = async (): Promise<void> => {
+  const search = async (): Promise<boolean> => {
     setSearching(true);
     setMessage("");
     try {
@@ -66,8 +67,10 @@ export function VoucherQueryPage(): JSX.Element {
         keyword: keyword.trim() || undefined
       };
       setRecords(await window.openAccountancy.searchVouchers(filters));
+      return true;
     } catch (error) {
       setMessage(`查询失败：${(error as Error).message}`);
+      return false;
     } finally {
       setSearching(false);
     }
@@ -122,7 +125,32 @@ export function VoucherQueryPage(): JSX.Element {
     setMessage(result.message);
     if (result.ok) {
       setSelected(null);
-      await search();
+      if (!await search()) {
+        setMessage(`${result.message} 但查询结果刷新失败，请手动重新查询。`);
+        return;
+      }
+    }
+  };
+
+  const unpost = async (record: VoucherRecord): Promise<void> => {
+    if (record.periodClosed) {
+      setMessage("该账期已结账，无法撤销记账。");
+      return;
+    }
+    if (!window.confirm(`警告：确认撤销 ${record.voucherDate} 第 ${record.voucherNo} 号凭证的记账？凭证将变为未记账，相关账簿及余额将重新计算。`)) return;
+    setUnposting(true);
+    setMessage("");
+    try {
+      const result = await window.openAccountancy.unpostVouchers({ voucherIds: [record.voucherId] });
+      if (result.ok) {
+        setSelected(null);
+        await search();
+      }
+      setMessage(result.message);
+    } catch (error) {
+      setMessage(`撤销记账失败：${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setUnposting(false);
     }
   };
 
@@ -211,7 +239,7 @@ export function VoucherQueryPage(): JSX.Element {
       </div>
 
       {selected ? (
-        <div className="modal-backdrop" role="presentation" onClick={() => setSelected(null)}>
+        <div className="modal-backdrop" role="presentation" onClick={() => { if (!unposting) setSelected(null); }}>
           <div className="modal-card voucher-detail-modal" role="dialog" aria-modal="true" aria-label="凭证详情" onClick={(event) => event.stopPropagation()}>
             <header className="voucher-detail-heading">
               <div><h2>记账凭证</h2><p>{selected.voucherDate}　编号：{selected.voucherNo}　附件：共{selected.attachments.length}张</p></div>
@@ -231,10 +259,11 @@ export function VoucherQueryPage(): JSX.Element {
             {selected.attachments.length ? <ul className="voucher-attachment-list">{selected.attachments.map((file) => <li key={file.filePath}>{file.fileName}</li>)}</ul> : null}
             {message ? <p className="auth-hint">{message}</p> : null}
             <div className="modal-actions">
-              <button type="button" className="btn btn-primary" disabled={selected.periodClosed} onClick={() => startEdit(selected)}>编辑</button>
-              <button type="button" className="btn btn-danger" disabled={selected.periodClosed} onClick={() => void remove(selected)}>删除</button>
-              <button type="button" className="btn" onClick={() => void refreshSelected()}>刷新</button>
-              <button type="button" className="btn" onClick={() => setSelected(null)}>关闭</button>
+              {selected.status === "posted" ? <button type="button" className="btn" disabled={selected.periodClosed || unposting} onClick={() => void unpost(selected)}>{unposting ? "撤销中..." : "撤销记账"}</button> : null}
+              <button type="button" className="btn btn-primary" disabled={selected.periodClosed || unposting} onClick={() => startEdit(selected)}>编辑</button>
+              <button type="button" className="btn btn-danger" disabled={selected.periodClosed || unposting} onClick={() => void remove(selected)}>删除</button>
+              <button type="button" className="btn" disabled={unposting} onClick={() => void refreshSelected()}>刷新</button>
+              <button type="button" className="btn" disabled={unposting} onClick={() => setSelected(null)}>关闭</button>
             </div>
           </div>
         </div>

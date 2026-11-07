@@ -1,4 +1,4 @@
-import type { AppShellState, AuthSession, RecentBookset } from "@common/contracts";
+import type { AppShellState, AuthSession, RecentBookset } from "../../common/contracts";
 
 export interface ShellContextState {
   shellState: AppShellState;

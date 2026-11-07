@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { ensureChartSchema, listUnmappedDetails } from "./chartAccounts";
 import type {
   BookkeepingResult,
   OperationResult,
@@ -258,6 +259,7 @@ function validateVoucher(db: Database.Database, input: VoucherInput): { ok: true
 
 export function listVoucherAccounts(db: Database.Database, keyword = ""): VoucherAccountOption[] {
   ensureVoucherSchema(db);
+  ensureChartSchema(db);
   const normalized = keyword.trim();
   const rows = db.prepare(`
     SELECT account_code, account_name, allows_manual_detail, requires_attachment, fixed_details_json
@@ -276,6 +278,7 @@ export function listVoucherAccounts(db: Database.Database, keyword = ""): Vouche
     SELECT detail_name FROM voucher_detail_hints
     WHERE account_code = ? ORDER BY use_count DESC, datetime(last_used_at) DESC LIMIT 10
   `);
+  const getMappedDetails = db.prepare("SELECT detail FROM chart_detail_mappings WHERE root_code = ? ORDER BY detail");
 
   return rows.map((row) => ({
     accountCode: row.account_code,
@@ -283,12 +286,16 @@ export function listVoucherAccounts(db: Database.Database, keyword = ""): Vouche
     allowsManualDetail: row.allows_manual_detail === 1,
     requiresAttachment: row.requires_attachment === 1,
     detailOptions: JSON.parse(row.fixed_details_json) as string[],
-    detailSuggestions: (getHints.all(row.account_code) as Array<{ detail_name: string }>).map((item) => item.detail_name)
+    detailSuggestions: [...new Set([
+      ...(getMappedDetails.all(row.account_code) as Array<{ detail: string }>).map((item) => item.detail),
+      ...(getHints.all(row.account_code) as Array<{ detail_name: string }>).map((item) => item.detail_name)
+    ])]
   }));
 }
 
 export function getVoucherDetailSuggestions(db: Database.Database, accountCode: string): string[] {
   ensureVoucherSchema(db);
+  ensureChartSchema(db);
   const account = db.prepare("SELECT fixed_details_json, allows_manual_detail FROM voucher_account_catalog WHERE account_code = ? AND is_active = 1")
     .get(accountCode) as { fixed_details_json: string; allows_manual_detail: number } | undefined;
   if (!account) {
@@ -300,7 +307,8 @@ export function getVoucherDetailSuggestions(db: Database.Database, accountCode: 
     SELECT detail_name FROM voucher_detail_hints
     WHERE account_code = ? ORDER BY use_count DESC, datetime(last_used_at) DESC LIMIT 10
   `).all(accountCode) as Array<{ detail_name: string }>;
-  return [...new Set([...fixed, ...hints.map((item) => item.detail_name)])];
+  const mapped = db.prepare("SELECT detail FROM chart_detail_mappings WHERE root_code = ? ORDER BY detail").all(accountCode) as Array<{ detail: string }>;
+  return [...new Set([...fixed, ...mapped.map((item) => item.detail), ...hints.map((item) => item.detail_name)])];
 }
 
 export function searchVouchers(db: Database.Database, query: VoucherSearchPayload): VoucherRecord[] {
@@ -444,18 +452,53 @@ export function deleteVoucher(db: Database.Database, voucherId: number, confirmU
   }
 }
 
+export function unpostVouchers(db: Database.Database, voucherIds: number[]): BookkeepingResult {
+    ensureVoucherSchema(db);
+    if (!Array.isArray(voucherIds) || voucherIds.length === 0 ||
+      voucherIds.some((id) => !Number.isSafeInteger(id) || id <= 0)) {
+      return { ok: false, message: "请选择有效的已记账凭证。", affectedCount: 0 };
+    }
+    const uniqueIds = [...new Set(voucherIds)];
+    const transaction = db.transaction(() => {
+      const getVoucher = db.prepare("SELECT voucher_date, voucher_no, status FROM voucher_records WHERE voucher_id = ?");
+      for (const id of uniqueIds) {
+        const voucher = getVoucher.get(id) as { voucher_date: string; voucher_no: number; status: "draft" | "posted" } | undefined;
+        if (!voucher) throw new Error(`凭证 ID ${id} 不存在，请刷新后重试。`);
+        if (voucher.status !== "posted") throw new Error(`凭证 ${voucher.voucher_date} 第 ${voucher.voucher_no} 号不是已记账状态，请刷新后重试。`);
+        const periods = db.prepare("SELECT status FROM fiscal_periods WHERE start_date <= ? AND end_date >= ?")
+          .all(voucher.voucher_date, voucher.voucher_date) as Array<{ status: "open" | "closed" }>;
+        if (periods.length > 1) throw new Error(`凭证 ${voucher.voucher_date} 第 ${voucher.voucher_no} 号匹配多个会计期间，请检查期间设置。`);
+        if (isPeriodClosed(db, voucher.voucher_date)) throw new Error(`凭证 ${voucher.voucher_date} 第 ${voucher.voucher_no} 号所属期间已结账，无法撤销记账。`);
+      }
+      const now = new Date().toISOString();
+      const update = db.prepare("UPDATE voucher_records SET status = 'draft', updated_at = ? WHERE voucher_id = ?");
+      const log = db.prepare("INSERT INTO voucher_posting_log (voucher_id, action_type, action_time) VALUES (?, 'unpost', ?)");
+      for (const id of uniqueIds) {
+        update.run(now, id);
+        log.run(id, now);
+      }
+    });
+    try {
+      transaction();
+      return { ok: true, message: `已撤销 ${uniqueIds.length} 张凭证的记账，相关账簿将重新计算。`, affectedCount: uniqueIds.length };
+    } catch (error) {
+      return { ok: false, message: `撤销记账失败：${error instanceof Error ? error.message : String(error)}`, affectedCount: 0 };
+    }
+}
+
 export function postVouchers(db: Database.Database, voucherIds: number[]): BookkeepingResult {
   ensureVoucherSchema(db);
   const uniqueIds = [...new Set(voucherIds)];
   if (uniqueIds.length === 0) {
     return { ok: false, message: "请选择要记账的凭证。", affectedCount: 0 };
   }
-
   const now = new Date().toISOString();
   const transaction = db.transaction(() => {
+    const candidates: Array<{ voucher_id: number; voucher_date: string; voucher_no: number }> = [];
+    const skipped: number[] = [];
     for (const voucherId of uniqueIds) {
-      const row = db.prepare("SELECT voucher_id, voucher_date, status, amount FROM voucher_records WHERE voucher_id = ?")
-        .get(voucherId) as { voucher_id: number; voucher_date: string; status: "draft" | "posted"; amount: number } | undefined;
+      const row = db.prepare("SELECT voucher_id, voucher_date, voucher_no, status, amount FROM voucher_records WHERE voucher_id = ?")
+        .get(voucherId) as { voucher_id: number; voucher_date: string; voucher_no: number; status: "draft" | "posted"; amount: number } | undefined;
       if (!row) {
         throw new Error("选中的凭证中有记录不存在，请刷新后重试。");
       }
@@ -463,16 +506,52 @@ export function postVouchers(db: Database.Database, voucherIds: number[]): Bookk
         throw new Error("选中的凭证中包含已记账凭证，请刷新后重试。");
       }
       if (isPeriodClosed(db, row.voucher_date)) {
-        throw new Error("选中的凭证包含已结账期间，无法记账。");
+        skipped.push(voucherId);
+        continue;
       }
-      db.prepare("UPDATE voucher_records SET status = 'posted', updated_at = ? WHERE voucher_id = ?").run(now, voucherId);
-      db.prepare("INSERT INTO voucher_posting_log (voucher_id, action_type, action_time) VALUES (?, 'post', ?)").run(voucherId, now);
+      candidates.push(row);
     }
+    if (!candidates.length) return { count: 0, skipped, periods: 0, roots: 0, details: 0 };
+    const unmapped = listUnmappedDetails(db, candidates.map((row) => row.voucher_id));
+    if (unmapped.length) throw new Error(`存在 ${unmapped.length} 项未映射的凭证明细，请先完成科目映射。`);
+    const periods = new Set<string>();
+    const roots = new Set<string>();
+    const details = new Set<string>();
+    const getPeriod = db.prepare("SELECT fiscal_year, period_no FROM fiscal_periods WHERE start_date <= ? AND end_date >= ?");
+    const enabled = db.prepare(`SELECT start_date FROM fiscal_periods WHERE
+      fiscal_year = CAST((SELECT value FROM bookset_meta WHERE key = 'enable_fiscal_year') AS INTEGER)
+      AND period_no = CAST((SELECT value FROM bookset_meta WHERE key = 'enable_fiscal_period_no') AS INTEGER)`)
+      .get() as { start_date: string } | undefined;
+    if (!enabled) throw new Error("账套启用期间不存在，无法记账。");
+    const getVoucher = db.prepare("SELECT payload_json FROM voucher_records WHERE voucher_id = ?");
+    const getMapping = db.prepare("SELECT account_code FROM chart_detail_mappings WHERE root_code = ? AND detail = ?");
+    candidates.sort((a, b) => a.voucher_date.localeCompare(b.voucher_date) || a.voucher_no - b.voucher_no || a.voucher_id - b.voucher_id);
+    for (const row of candidates) {
+      if (row.voucher_date < enabled.start_date) throw new Error(`凭证 ${row.voucher_id} 早于账套启用期间，无法记账。`);
+      const period = getPeriod.all(row.voucher_date, row.voucher_date) as Array<{ fiscal_year: number; period_no: number }>;
+      if (period.length !== 1) throw new Error(`凭证 ${row.voucher_id} 的日期不属于唯一的会计期间。`);
+      periods.add(`${period[0]!.fiscal_year}-${period[0]!.period_no}`);
+      const payload = JSON.parse((getVoucher.get(row.voucher_id) as { payload_json: string }).payload_json) as VoucherPayload;
+      if (!Array.isArray(payload.lines)) throw new Error(`凭证 ${row.voucher_id} 的分录数据无效。`);
+      for (const line of payload.lines) {
+        if (!line.accountCode) continue;
+        roots.add(line.accountCode);
+        if (line.detail.trim()) {
+          const mapped = getMapping.get(line.accountCode, line.detail.trim()) as { account_code: string } | undefined;
+          if (!mapped) throw new Error(`凭证 ${row.voucher_id} 的明细尚未映射。`);
+          details.add(mapped.account_code);
+        }
+      }
+      db.prepare("UPDATE voucher_records SET status = 'posted', updated_at = ? WHERE voucher_id = ?").run(now, row.voucher_id);
+      db.prepare("INSERT INTO voucher_posting_log (voucher_id, action_type, action_time) VALUES (?, 'post', ?)").run(row.voucher_id, now);
+    }
+    return { count: candidates.length, skipped, periods: periods.size, roots: roots.size, details: details.size };
   });
 
   try {
-    transaction();
-    return { ok: true, message: `已记账 ${uniqueIds.length} 张凭证。`, affectedCount: uniqueIds.length };
+    const result = transaction();
+    const skipped = result.skipped.length ? ` 已结账期间的凭证（ID：${result.skipped.join("、")}）未记账。` : "";
+    return { ok: result.count > 0, message: `已记账 ${result.count} 个凭证，共 ${result.periods} 期，${result.roots} 个总账科目，${result.details} 个明细科目。${skipped}`, affectedCount: result.count };
   } catch (error) {
     return { ok: false, message: (error as Error).message || "记账失败。", affectedCount: 0 };
   }

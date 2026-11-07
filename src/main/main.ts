@@ -6,13 +6,18 @@ import type { OpenDialogOptions, SaveDialogOptions } from "electron";
 import Database from "better-sqlite3";
 import { DatabaseService } from "./database";
 import { loadStandardSubjects } from "./accountingSubjects";
+import { createAccountForVoucherDetail, deleteChartAccount, listChartAccounts, listUnmappedDetails, mapVoucherDetail, saveChartAccount } from "./chartAccounts";
+import { queryLedger } from "./ledgers";
+import { exportLedger } from "./ledgerExport";
 import {
   addFiscalYear,
   closeFiscalPeriod,
   ensureBooksetSettingsSchema,
   getBooksetSettings,
+  getCurrentAccountingPeriod,
   initializeBooksetSettings,
   saveBooksetSettings,
+  selectAccountingDate,
   updateFiscalPeriod
 } from "./booksetSettings";
 import {
@@ -22,6 +27,7 @@ import {
   getVoucherDetailSuggestions,
   listVoucherAccounts,
   postVouchers,
+  unpostVouchers,
   saveVoucher,
   searchVouchers
 } from "./vouchers";
@@ -34,6 +40,7 @@ import type {
   BooksetOperationResult,
   BooksetSummary,
   ChangeOwnPasswordPayload,
+  ChartAccountInput,
   CreateBooksetPayload,
   CreateUserPayload,
   DeleteUserPayload,
@@ -41,6 +48,8 @@ import type {
   InitSystemPayload,
   ImportBooksetPackagePayload,
   LoginPayload,
+  LedgerExportFormat,
+  LedgerQuery,
   OpenBooksetByIdPayload,
   RecoverAccountPayload,
   RestoreBooksetBackupPayload,
@@ -328,8 +337,9 @@ function withActiveBookset<T>(operation: (db: Database.Database) => T): T | null
 }
 
 function createShellState(): AppShellState {
+  const bookCode = openedBookset ? dbService.getBookCode(openedBookset.id) : null;
   const activeBooksetLabel = openedBookset
-    ? `${openedBookset.name} - ${openedBookset.fiscalPeriod}`
+    ? `${openedBookset.name}${bookCode ? `(${bookCode})` : ""}`
     : "未打开账套";
 
   return {
@@ -337,6 +347,7 @@ function createShellState(): AppShellState {
     version: app.getVersion(),
     hasOpenedBookset: openedBookset !== null,
     activeBooksetLabel,
+    currentAccountingPeriod: openedBookset ? withActiveBookset((db) => getCurrentAccountingPeriod(db)) : null,
     todoItems: composeTodoItems()
   };
 }
@@ -755,6 +766,22 @@ function registerIpcHandlers(): void {
     return withActiveBookset((db) => getBooksetSettings(db)) ?? null;
   });
 
+  ipcMain.handle("bookset:select-accounting-date", (_event, date: string) => {
+    const auth = ensureAuthenticated();
+    if (!auth.ok) return auth;
+    if (typeof date !== "string") return { ok: false, message: "请选择有效日期。" };
+    const result = withActiveBookset((db) => selectAccountingDate(db, date));
+    if (result?.ok && openedBookset) {
+      const current = withActiveBookset((db) => getCurrentAccountingPeriod(db));
+      if (current) {
+        const period = `${String(current.year).padStart(4, "0")}年${String(current.periodNo).padStart(2, "0")}期`;
+        dbService.updateBooksetDisplay(openedBookset.id, openedBookset.name, period);
+        openedBookset = { ...openedBookset, fiscalPeriod: period };
+      }
+    }
+    return result ?? { ok: false, message: "请先打开账套。" };
+  });
+
   ipcMain.handle("bookset-settings:save", (_event, payload: SaveBooksetSettingsPayload) => {
     const result = withActiveBookset((db) => saveBooksetSettings(db, payload));
     if (result?.ok && openedBookset) {
@@ -795,6 +822,67 @@ function registerIpcHandlers(): void {
     return withActiveBookset((db) => listVoucherAccounts(db, keyword)) ?? [];
   });
 
+  ipcMain.handle("chart:list", () => {
+    const auth = ensureAuthenticated();
+    if (!auth.ok) throw new Error(auth.message);
+    const result = withActiveBookset((db) => listChartAccounts(db));
+    if (!result) throw new Error("请先打开账套。");
+    return result;
+  });
+
+  ipcMain.handle("chart:save", (_event, input: ChartAccountInput, originalCode?: string) => {
+    const auth = ensureAuthenticated();
+    if (!auth.ok) return auth;
+    return withActiveBookset((db) => saveChartAccount(db, input, originalCode)) ?? { ok: false, message: "请先打开账套。" };
+  });
+
+  ipcMain.handle("chart:create-for-detail", (_event, rootCode: string, detail: string, input: ChartAccountInput) => {
+    const auth = ensureAuthenticated();
+    if (!auth.ok) return auth;
+    return withActiveBookset((db) => createAccountForVoucherDetail(db, rootCode, detail, input)) ?? { ok: false, message: "请先打开账套。" };
+  });
+
+  ipcMain.handle("chart:delete", (_event, code: string) => {
+    const auth = ensureAuthenticated();
+    if (!auth.ok) return auth;
+    return withActiveBookset((db) => deleteChartAccount(db, code)) ?? { ok: false, message: "请先打开账套。" };
+  });
+
+  ipcMain.handle("chart:unmapped", (_event, voucherIds?: number[]) => {
+    const auth = ensureAuthenticated();
+    if (!auth.ok) throw new Error(auth.message);
+    const result = withActiveBookset((db) => listUnmappedDetails(db, voucherIds));
+    if (!result) throw new Error("请先打开账套。");
+    return result;
+  });
+
+  ipcMain.handle("chart:map-detail", (_event, rootCode: string, detail: string, accountCode: string) => {
+    const auth = ensureAuthenticated();
+    if (!auth.ok) return auth;
+    return withActiveBookset((db) => mapVoucherDetail(db, rootCode, detail, accountCode)) ?? { ok: false, message: "请先打开账套。" };
+  });
+
+  ipcMain.handle("ledger:query", (_event, query: LedgerQuery) => {
+    const auth = ensureAuthenticated();
+    if (!auth.ok) throw new Error(auth.message);
+    const result = withActiveBookset((db) => queryLedger(db, query));
+    if (!result) throw new Error("请先打开账套。");
+    return result;
+  });
+
+  ipcMain.handle("ledger:export", async (_event, query: LedgerQuery, format: LedgerExportFormat) => {
+    const auth = ensureAuthenticated();
+    if (!auth.ok) return auth;
+    if (!["pdf", "xlsx", "csv"].includes(format)) return { ok: false, message: "导出格式无效。" };
+    try {
+      const result = withActiveBookset((db) => queryLedger(db, query));
+      if (!result) return { ok: false, message: "请先打开账套。" };
+      return await exportLedger(query, result, format, BrowserWindow.getFocusedWindow() ?? mainWindow ?? undefined);
+    } catch (error) {
+      return { ok: false, message: `导出失败：${error instanceof Error ? error.message : String(error)}` };
+    }
+  });
+
   ipcMain.handle("voucher:detail-suggestions", (_event, accountCode: string) => {
     return withActiveBookset((db) => getVoucherDetailSuggestions(db, accountCode)) ?? [];
   });
@@ -820,6 +908,13 @@ function registerIpcHandlers(): void {
   ipcMain.handle("voucher:post", (_event, payload: BookkeepingPayload) => {
     const result = withActiveBookset((db) => postVouchers(db, payload.voucherIds));
     return result ?? { ok: false, message: "请先打开账套。", affectedCount: 0 };
+  });
+
+  ipcMain.handle("voucher:unpost", (_event, payload: BookkeepingPayload) => {
+    const auth = ensureAuthenticated();
+    if (!auth.ok) return { ...auth, affectedCount: 0 };
+    if (!payload || !Array.isArray(payload.voucherIds)) return { ok: false, message: "请选择有效的已记账凭证。", affectedCount: 0 };
+    return withActiveBookset((db) => unpostVouchers(db, payload.voucherIds)) ?? { ok: false, message: "请先打开账套。", affectedCount: 0 };
   });
 
   ipcMain.handle("dialog:pick-voucher-attachments", async () => {

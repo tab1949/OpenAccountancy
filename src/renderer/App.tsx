@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { HashRouter, Link, NavLink, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { AppShellState, AuthSession, RecentBookset, SystemEntryState } from "../common/contracts";
+import { CurrentAccountingPeriodContext } from "./CurrentAccountingPeriodContext";
+import { AccountingPeriodPicker } from "./components/AccountingPeriodPicker";
 import { BooksetOperationModal, type BooksetOperationType } from "./components/BooksetOperationModal";
 import { PlaceholderPage } from "./components/PlaceholderPage";
 import { allNavItems, navSections } from "./config/navigation";
@@ -31,6 +33,7 @@ const defaultShellState: AppShellState = {
   version: "0.0.0",
   hasOpenedBookset: false,
   activeBooksetLabel: "未打开账套",
+  currentAccountingPeriod: null,
   todoItems: []
 };
 
@@ -246,6 +249,7 @@ function ShellLayout({
             onToggle={() => setOpenMenu((prev) => (prev === "bookset" ? null : "bookset"))}
             onClose={() => setOpenMenu(null)}
           />
+          {shellState.hasOpenedBookset ? <AccountingPeriodPicker /> : null}
           <ToolbarDropdown
             menuId="settings"
             label={t("common.settings")}
@@ -397,6 +401,30 @@ function AppRoutes(): JSX.Element {
     setRecentBooksets(recents);
   };
 
+  const selectAccountingDate = async (date: string) => {
+    if (typeof window.openAccountancy.selectAccountingDate !== "function") {
+      return { ok: false, message: "当前窗口使用旧版程序，请重启 Electron 后重试。" };
+    }
+    let result;
+    try {
+      result = await window.openAccountancy.selectAccountingDate(date);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("No handler registered")) {
+        return { ok: false, message: "当前窗口使用旧版程序，请重启 Electron 后重试。" };
+      }
+      return { ok: false, message: `切换会计期间失败：${message}` };
+    }
+    if (result.ok) {
+      try {
+        await refreshShellData();
+      } catch {
+        return { ok: false, message: "日期已保存，但界面刷新失败，请重新打开账套。" };
+      }
+    }
+    return result;
+  };
+
   const onLogout = async (): Promise<void> => {
     await window.openAccountancy.logout();
     await refreshAuthSession();
@@ -424,7 +452,7 @@ function AppRoutes(): JSX.Element {
   };
 
   return (
-    <>
+    <CurrentAccountingPeriodContext.Provider value={{ currentAccountingPeriod: shellState.currentAccountingPeriod, selectAccountingDate }}>
       <Routes>
       <Route path="/" element={<EntryRoute mode={entryState.mode} />} />
       <Route
@@ -481,7 +509,7 @@ function AppRoutes(): JSX.Element {
           onCompleted={refreshShellData}
         />
       ) : null}
-    </>
+    </CurrentAccountingPeriodContext.Provider>
   );
 }
 

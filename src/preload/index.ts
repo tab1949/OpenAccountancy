@@ -4,12 +4,15 @@ import type {
   BookkeepingPayload,
   CreateBooksetPayload,
   ChangeOwnPasswordPayload,
+  ChartAccountInput,
   CreateUserPayload,
   DeleteUserPayload,
   ExportBooksetPackagePayload,
   InitSystemPayload,
   ImportBooksetPackagePayload,
   LoginPayload,
+  LedgerExportFormat,
+  LedgerQuery,
   OpenBooksetByIdPayload,
   OpenAccountancyApi,
   RecoverAccountPayload,
@@ -37,6 +40,7 @@ const api: OpenAccountancyApi = {
   updateUser: (payload: UpdateUserPayload) => ipcRenderer.invoke("user:update", payload),
   deleteUser: (payload: DeleteUserPayload) => ipcRenderer.invoke("user:delete", payload),
   getShellState: () => ipcRenderer.invoke("app:shell-state"),
+  selectAccountingDate: (date: string) => ipcRenderer.invoke("bookset:select-accounting-date", date),
   listBooksets: () => ipcRenderer.invoke("bookset:list"),
   createBookset: (payload: CreateBooksetPayload) => ipcRenderer.invoke("bookset:create", payload),
   getBooksetSettings: () => ipcRenderer.invoke("bookset-settings:get"),
@@ -55,6 +59,14 @@ const api: OpenAccountancyApi = {
   pickPackageFile: () => ipcRenderer.invoke("dialog:pick-package-file"),
   pickPackageSavePath: (defaultFileName: string) => ipcRenderer.invoke("dialog:pick-package-save-path", defaultFileName),
   getRecentBooksets: () => ipcRenderer.invoke("bookset:recent"),
+  listChartAccounts: () => ipcRenderer.invoke("chart:list"),
+  saveChartAccount: (input: ChartAccountInput, originalCode?: string) => ipcRenderer.invoke("chart:save", input, originalCode),
+  createAccountForVoucherDetail: (rootCode: string, detail: string, input: ChartAccountInput) => ipcRenderer.invoke("chart:create-for-detail", rootCode, detail, input),
+  deleteChartAccount: (code: string) => ipcRenderer.invoke("chart:delete", code),
+  listUnmappedDetails: (voucherIds?: number[]) => ipcRenderer.invoke("chart:unmapped", voucherIds),
+  mapVoucherDetail: (rootCode: string, detail: string, accountCode: string) => ipcRenderer.invoke("chart:map-detail", rootCode, detail, accountCode),
+  queryLedger: (query: LedgerQuery) => ipcRenderer.invoke("ledger:query", query),
+  exportLedger: (query: LedgerQuery, format: LedgerExportFormat) => ipcRenderer.invoke("ledger:export", query, format),
   listVoucherAccounts: (keyword?: string) => ipcRenderer.invoke("voucher:accounts", keyword),
   getVoucherDetailSuggestions: (accountCode: string) => ipcRenderer.invoke("voucher:detail-suggestions", accountCode),
   pickVoucherAttachments: () => ipcRenderer.invoke("dialog:pick-voucher-attachments"),
@@ -62,7 +74,8 @@ const api: OpenAccountancyApi = {
   getVoucher: (voucherId: number) => ipcRenderer.invoke("voucher:get", voucherId),
   saveVoucher: (payload: VoucherInput, confirmUnpost?: boolean) => ipcRenderer.invoke("voucher:save", payload, confirmUnpost),
   deleteVoucher: (voucherId: number, confirmUnpost?: boolean) => ipcRenderer.invoke("voucher:delete", voucherId, confirmUnpost),
-  postVouchers: (payload: BookkeepingPayload) => ipcRenderer.invoke("voucher:post", payload)
+  postVouchers: (payload: BookkeepingPayload) => ipcRenderer.invoke("voucher:post", payload),
+  unpostVouchers: (payload: BookkeepingPayload) => ipcRenderer.invoke("voucher:unpost", payload)
 };
 
 contextBridge.exposeInMainWorld("openAccountancy", api);

@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import type {
   BooksetSettings,
+  CurrentAccountingPeriod,
   CreateBooksetPayload,
   FiscalPeriodSetting,
   SaveBooksetSettingsPayload,
@@ -43,6 +44,44 @@ function getMeta(db: Database.Database, key: string): string {
 function setMeta(db: Database.Database, key: string, value: string): void {
   db.prepare("INSERT INTO bookset_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
     .run(key, value);
+}
+
+export function getCurrentAccountingPeriod(db: Database.Database): CurrentAccountingPeriod | null {
+  const year = getMeta(db, "fiscal_year");
+  const periodNo = getMeta(db, "fiscal_period_no");
+  if (!year || !periodNo) return null;
+  const period = db.prepare(`SELECT fiscal_year, period_no, start_date, end_date, status FROM fiscal_periods
+    WHERE fiscal_year = ? AND period_no = ?`).get(Number(year), Number(periodNo)) as
+    { fiscal_year: number; period_no: number; start_date: string; end_date: string; status: "open" | "closed" } | undefined;
+  if (!period) return null;
+  const selected = getMeta(db, "accounting_date");
+  const now = new Date();
+  const today = `${String(now.getFullYear()).padStart(4, "0")}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const date = selected >= period.start_date && selected <= period.end_date
+    ? selected
+    : today >= period.start_date && today <= period.end_date ? today : period.start_date;
+  return { date, year: period.fiscal_year, periodNo: period.period_no, startDate: period.start_date, endDate: period.end_date, status: period.status };
+}
+
+export function selectAccountingDate(db: Database.Database, date: string): { ok: boolean; message: string } {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { ok: false, message: "请选择有效日期。" };
+  const parsed = new Date(`${date}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) {
+    return { ok: false, message: "请选择有效日期。" };
+  }
+  const periods = db.prepare(`SELECT fiscal_year, period_no FROM fiscal_periods
+    WHERE start_date <= ? AND end_date >= ?`).all(date, date) as Array<{ fiscal_year: number; period_no: number }>;
+  if (periods.length !== 1) {
+    return { ok: false, message: periods.length ? "该日期匹配多个会计期间，请检查期间设置。" : "所选日期不属于任何会计期间，请先设置对应期间。" };
+  }
+  const period = periods[0]!;
+  db.transaction(() => {
+    setMeta(db, "accounting_date", date);
+    setMeta(db, "fiscal_year", String(period.fiscal_year));
+    setMeta(db, "fiscal_period_no", String(period.period_no));
+    setMeta(db, "fiscal_period", `${String(period.fiscal_year).padStart(4, "0")}年${pad(period.period_no)}期`);
+  })();
+  return { ok: true, message: "当前会计期间已更新。" };
 }
 
 function setSetting(db: Database.Database, key: string, value: unknown): void {

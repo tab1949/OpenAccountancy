@@ -9,8 +9,11 @@ import { BookkeepingPage } from "./BookkeepingPage";
 import { VoucherFillPage } from "./VoucherFillPage";
 import { VoucherQueryPage } from "./VoucherQueryPage";
 import { BooksetSettingsPage } from "./BooksetSettingsPage";
+import { ChartAccountsPage } from "./ChartAccountsPage";
+import { LedgerPage } from "./LedgerPage";
+import type { LedgerKind } from "../../../common/contracts";
 import type { BooksetOperationType } from "@renderer/components/BooksetOperationModal";
-import type { ShellContextState } from "./types";
+import type { ShellContextState } from "../types";
 
 export function RoutedModulePage({
   authSession,
@@ -39,6 +42,12 @@ export function RoutedModulePage({
   if (location.pathname === "/app/voucher/fill") {
     return <VoucherFillPage />;
   }
+
+  if (location.pathname === "/app/ledger/accounts") {
+    return <ChartAccountsPage />;
+  }
+  const ledgerKind = location.pathname.match(/^\/app\/ledger\/(general|subsidiary|journal|trial-balance)$/)?.[1] as LedgerKind | undefined;
+  if (ledgerKind) return <LedgerPage key={ledgerKind} kind={ledgerKind} />;
 
   if (location.pathname === "/app/voucher/query") {
     return <VoucherQueryPage />;

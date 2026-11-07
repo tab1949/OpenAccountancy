@@ -1,4 +1,4 @@
-import type { OpenAccountancyApi } from "@common/contracts";
+import type { OpenAccountancyApi } from "../../common/contracts";
 
 declare global {
   interface Window {

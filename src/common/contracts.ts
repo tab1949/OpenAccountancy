@@ -126,7 +126,17 @@ export interface AppShellState {
   version: string;
   hasOpenedBookset: boolean;
   activeBooksetLabel: string;
+  currentAccountingPeriod: CurrentAccountingPeriod | null;
   todoItems: TodoItem[];
+}
+
+export interface CurrentAccountingPeriod {
+  date: string;
+  year: number;
+  periodNo: number;
+  startDate: string;
+  endDate: string;
+  status: "open" | "closed";
 }
 
 export interface BooksetSummary {
@@ -292,6 +302,81 @@ export interface BookkeepingPayload {
   voucherIds: number[];
 }
 
+export type AccountCategory = "资产" | "负债" | "共同" | "所有者权益" | "成本" | "损益";
+export type AccountDirection = "借" | "贷" | "借或贷";
+
+export interface ChartAccount {
+  code: string;
+  name: string;
+  category: AccountCategory;
+  direction: AccountDirection;
+  parentCode: string | null;
+  level: number;
+  used: boolean;
+}
+
+export interface ChartAccountInput {
+  parentCode: string;
+  code: string;
+  name: string;
+  category: AccountCategory;
+  direction: AccountDirection;
+}
+
+export interface UnmappedDetail {
+  rootCode: string;
+  rootName: string;
+  detail: string;
+  count: number;
+}
+
+export interface PeriodKey {
+  year: number;
+  periodNo: number;
+}
+
+export type LedgerKind = "general" | "subsidiary" | "journal" | "trial-balance";
+
+export interface LedgerQuery {
+  kind: LedgerKind;
+  from: PeriodKey;
+  to: PeriodKey;
+  accountCode?: string;
+  rootsOnly?: boolean;
+}
+
+export interface LedgerRow {
+  kind: "opening" | "entry" | "period" | "year";
+  date: string;
+  voucherNo: string;
+  summary: string;
+  debit: number;
+  credit: number;
+  direction: "借" | "贷" | "平";
+  balance: number;
+}
+
+export interface TrialBalanceRow {
+  code: string;
+  name: string;
+  level: number;
+  openingDebit: number;
+  openingCredit: number;
+  debit: number;
+  credit: number;
+  closingDebit: number;
+  closingCredit: number;
+}
+
+export interface LedgerResult {
+  kind: LedgerKind;
+  account?: ChartAccount;
+  rows: LedgerRow[];
+  balances: TrialBalanceRow[];
+}
+
+export type LedgerExportFormat = "pdf" | "xlsx" | "csv";
+
 export interface BookkeepingResult extends OperationResult {
   affectedCount: number;
 }
@@ -328,6 +413,7 @@ export interface OpenAccountancyApi {
   updateUser: (payload: UpdateUserPayload) => Promise<{ ok: boolean; message: string }>;
   deleteUser: (payload: DeleteUserPayload) => Promise<{ ok: boolean; message: string }>;
   getShellState: () => Promise<AppShellState>;
+  selectAccountingDate: (date: string) => Promise<OperationResult>;
   listBooksets: () => Promise<BooksetSummary[]>;
   createBookset: (payload: CreateBooksetPayload) => Promise<BooksetOperationResult>;
   getBooksetSettings: () => Promise<BooksetSettings | null>;
@@ -346,6 +432,14 @@ export interface OpenAccountancyApi {
   pickPackageFile: () => Promise<string | null>;
   pickPackageSavePath: (defaultFileName: string) => Promise<string | null>;
   getRecentBooksets: () => Promise<RecentBookset[]>;
+  listChartAccounts: () => Promise<ChartAccount[]>;
+  saveChartAccount: (input: ChartAccountInput, originalCode?: string) => Promise<OperationResult>;
+  createAccountForVoucherDetail: (rootCode: string, detail: string, input: ChartAccountInput) => Promise<OperationResult>;
+  deleteChartAccount: (code: string) => Promise<OperationResult>;
+  listUnmappedDetails: (voucherIds?: number[]) => Promise<UnmappedDetail[]>;
+  mapVoucherDetail: (rootCode: string, detail: string, accountCode: string) => Promise<OperationResult>;
+  queryLedger: (query: LedgerQuery) => Promise<LedgerResult>;
+  exportLedger: (query: LedgerQuery, format: LedgerExportFormat) => Promise<OperationResult>;
   listVoucherAccounts: (keyword?: string) => Promise<VoucherAccountOption[]>;
   getVoucherDetailSuggestions: (accountCode: string) => Promise<string[]>;
   pickVoucherAttachments: () => Promise<VoucherAttachmentInput[]>;
@@ -354,4 +448,5 @@ export interface OpenAccountancyApi {
   saveVoucher: (payload: VoucherInput, confirmUnpost?: boolean) => Promise<VoucherMutationResult>;
   deleteVoucher: (voucherId: number, confirmUnpost?: boolean) => Promise<OperationResult>;
   postVouchers: (payload: BookkeepingPayload) => Promise<BookkeepingResult>;
+  unpostVouchers: (payload: BookkeepingPayload) => Promise<BookkeepingResult>;
 }

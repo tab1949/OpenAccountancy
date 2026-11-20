@@ -203,7 +203,6 @@ function validateVoucher(db: Database.Database, input: VoucherInput): { ok: true
 
   let debitCents = 0;
   let creditCents = 0;
-  let requiresAttachment = false;
 
   for (const line of populated) {
     if (!line.summary.trim()) {
@@ -243,15 +242,10 @@ function validateVoucher(db: Database.Database, input: VoucherInput): { ok: true
 
     debitCents += debit;
     creditCents += credit;
-    requiresAttachment ||= account.requires_attachment === 1;
   }
 
   if (debitCents <= 0 || debitCents !== creditCents) {
     return { ok: false, message: "当前借贷不平衡。" };
-  }
-
-  if (requiresAttachment && input.attachments.length === 0) {
-    return { ok: false, message: "当前分录要求提供原始凭证附件。" };
   }
 
   return { ok: true, amount: debitCents / 100 };

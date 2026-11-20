@@ -46,6 +46,9 @@ export function RoutedModulePage({
   if (location.pathname === "/app/ledger/accounts") {
     return <ChartAccountsPage />;
   }
+  if (location.pathname === "/app/period-end/account-balance") {
+    return <LedgerPage key="trial-balance" kind="trial-balance" />;
+  }
   const ledgerKind = location.pathname.match(/^\/app\/ledger\/(general|subsidiary|journal|trial-balance)$/)?.[1] as LedgerKind | undefined;
   if (ledgerKind) return <LedgerPage key={ledgerKind} kind={ledgerKind} />;
 

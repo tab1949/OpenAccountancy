@@ -55,8 +55,6 @@ export function VoucherEditor({ voucher, onSaved, onCancel }: VoucherEditorProps
   const creditTotal = lines.reduce((total, line) => total + Math.round((line.credit || 0) * 100), 0) / 100;
   const populatedCount = lines.filter((line) => line.summary.trim() || line.accountCode || line.detail.trim() || line.debit || line.credit).length;
   const balanced = debitTotal > 0 && Math.round(debitTotal * 100) === Math.round(creditTotal * 100);
-  const attachmentRequired = lines.some((line) => accounts.find((account) => account.accountCode === line.accountCode)?.requiresAttachment);
-
   const visibleAccounts = useMemo(() => {
     const keyword = accountSearch.trim().toLocaleLowerCase();
     if (!keyword) return accounts;
@@ -251,7 +249,6 @@ export function VoucherEditor({ voucher, onSaved, onCancel }: VoucherEditorProps
         </table>
       </div>
 
-      {attachmentRequired && attachments.length === 0 ? <p className="voucher-warning">当前分录要求提供原始凭证附件。</p> : null}
       {populatedCount > 0 && !balanced ? <p className="voucher-warning">当前借贷不平衡</p> : null}
       {message ? <p className="auth-hint">{message}</p> : null}
       <div className="auth-actions voucher-editor-actions">

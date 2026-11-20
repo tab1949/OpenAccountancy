@@ -236,6 +236,7 @@ function ShellLayout({
         <div className="topbar-left">
           <Link to="/app/home" className="logo-link">
             {shellState.appName}
+            <span className="logo-version">v{shellState.version}</span>
           </Link>
           <ToolbarDropdown
             menuId="bookset"
@@ -250,14 +251,6 @@ function ShellLayout({
             onClose={() => setOpenMenu(null)}
           />
           {shellState.hasOpenedBookset ? <AccountingPeriodPicker /> : null}
-          <ToolbarDropdown
-            menuId="settings"
-            label={t("common.settings")}
-            items={settingsMenuItems}
-            isOpen={openMenu === "settings"}
-            onToggle={() => setOpenMenu((prev) => (prev === "settings" ? null : "settings"))}
-            onClose={() => setOpenMenu(null)}
-          />
           {shellState.hasOpenedBookset ? (
             <span className="chip todo-inline">
               {t("shell.todoPanel")}（<span className="todo-count">{todoCount}</span>）
@@ -265,11 +258,17 @@ function ShellLayout({
           ) : null}
         </div>
 
-        <div className="topbar-center">
-          <input type="search" placeholder={t("shell.searchPlaceholder")} disabled />
-        </div>
-
         <div className="topbar-right">
+          <input type="search" placeholder={t("shell.searchPlaceholder")} disabled />
+          <ToolbarDropdown
+            menuId="settings"
+            label={t("common.settings")}
+            items={settingsMenuItems}
+            isOpen={openMenu === "settings"}
+            onToggle={() => setOpenMenu((prev) => (prev === "settings" ? null : "settings"))}
+            onClose={() => setOpenMenu(null)}
+            alignRight
+          />
           <ToolbarDropdown
             menuId="help"
             label={t("common.help")}
@@ -277,6 +276,7 @@ function ShellLayout({
             isOpen={openMenu === "help"}
             onToggle={() => setOpenMenu((prev) => (prev === "help" ? null : "help"))}
             onClose={() => setOpenMenu(null)}
+            alignRight
           />
           <ToolbarDropdown
             menuId="user"
@@ -355,10 +355,8 @@ function ShellLayout({
         <main className="content">
           <div className="content-head">
             <h1>{activeItemLabel}</h1>
-            <small>{t("common.version")} {shellState.version}</small>
           </div>
           <Outlet context={{ shellState, recentBooksets, refreshShellData, authSession } satisfies ShellContextState} />
-          <div className="workspace-footer-note">{t("home.footer")}</div>
         </main>
       </div>
     </div>

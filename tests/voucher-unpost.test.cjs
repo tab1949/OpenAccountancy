@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const Database = require("better-sqlite3");
-const { ensureVoucherSchema, unpostVouchers, postVouchers } = require("../dist/electron/main/vouchers.js");
+const { ensureVoucherSchema, unpostVouchers, postVouchers, saveVoucher } = require("../dist/electron/main/vouchers.js");
 const { ensureBooksetSettingsSchema } = require("../dist/electron/main/booksetSettings.js");
 const { loadStandardSubjects } = require("../dist/electron/main/accountingSubjects.js");
 const { queryLedger } = require("../dist/electron/main/ledgers.js");
@@ -45,4 +45,37 @@ test("unposting is atomic, logs changes, respects closing and updates ledgers", 
     assert.equal(balance(), 0);
     assert.deepEqual(logs().map((entry) => entry.action_type), ["unpost", "post", "unpost", "unpost"]);
   } finally { db.close(); }
+});
+
+test("saving a voucher does not require original-voucher attachments", () => {
+  const db = new Database(":memory:");
+  try {
+    db.exec("CREATE TABLE bookset_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
+    db.prepare("INSERT INTO bookset_meta VALUES ('accounting_standard_code','ASBE_2006'), ('enable_fiscal_year','2026'), ('enable_fiscal_period_no','1')").run();
+    ensureVoucherSchema(db, loadStandardSubjects("ASBE_2006"));
+
+    const lines = [
+      { lineNo: 1, summary: "应收款", accountCode: "1122", accountName: "应收账款", detail: "", debit: 100, credit: 0 },
+      { lineNo: 2, summary: "银行收款", accountCode: "1002", accountName: "银行存款", detail: "", debit: 0, credit: 100 },
+      ...Array.from({ length: 9 }, (_, index) => ({
+        lineNo: index + 3,
+        summary: "",
+        accountCode: "",
+        accountName: "",
+        detail: "",
+        debit: 0,
+        credit: 0
+      }))
+    ];
+
+    const result = saveVoucher(db, {
+      voucherDate: "2026-11-21",
+      lines,
+      attachments: []
+    }, false);
+
+    assert.equal(result.ok, true);
+  } finally {
+    db.close();
+  }
 });

@@ -107,6 +107,15 @@ export const navSections: NavSection[] = [
           { key: "bookkeeping-carry-cogs", labelKey: "nav.item.bookkeepingCarryCogs", path: "/app/period-end/carry-cogs", descriptionKey: "nav.desc.bookkeepingCarryCogs", requiresBookset: true },
           { key: "bookkeeping-carry-pl", labelKey: "nav.item.bookkeepingCarryPl", path: "/app/period-end/carry-pl", descriptionKey: "nav.desc.bookkeepingCarryPl", requiresBookset: true }
         ]
+      },
+      {
+        key: "period-end-close",
+        labelKey: "nav.group.periodEndClose",
+        items: [
+          { key: "period-end-trial-balance", labelKey: "nav.item.periodEndTrialBalance", path: "/app/period-end/trial-balance", descriptionKey: "nav.desc.periodEndTrialBalance", requiresBookset: true },
+          { key: "period-end-account-summary", labelKey: "nav.item.periodEndAccountSummary", path: "/app/period-end/account-summary", descriptionKey: "nav.desc.periodEndAccountSummary", requiresBookset: true },
+          { key: "period-end-account-balance", labelKey: "nav.item.ledgerTrialBalance", path: "/app/period-end/account-balance", descriptionKey: "nav.desc.ledgerTrialBalance", requiresBookset: true }
+        ]
       }
     ]
   },

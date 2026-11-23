@@ -49,6 +49,36 @@ test("exports ledger tables with safe text, numeric amounts and grouped trial ba
     assert.match(pdfHtml, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
     assert.equal(destroyed, true);
 
+    for (const [cashierJournal, code, name, title] of [
+      ["cash", "1001", "库存现金", "现金日记账"],
+      ["bank", "1002", "银行存款", "银行存款日记账"]
+    ]) {
+      const cashierQuery = { ...query, kind: "journal", accountCode: code, cashierJournal };
+      const cashierResult = { ...result, kind: "journal", account: { code, name },
+        rows: result.rows.map((row) => ({ ...row, voucherNo: "" })) };
+      destination = path.join(directory, `${cashierJournal}.csv`);
+      await exportLedger(cashierQuery, cashierResult, "csv");
+      const cashierCsv = fs.readFileSync(destination, "utf8");
+      assert.match(cashierCsv, new RegExp(`"${title}"`));
+      const cashierSubtitle = cashierCsv.split("\r\n")[1];
+      assert.ok(!cashierSubtitle.includes(code));
+      assert.ok(!cashierSubtitle.includes(name));
+      destination = path.join(directory, `${cashierJournal}.xlsx`);
+      await exportLedger(cashierQuery, cashierResult, "xlsx");
+      const cashierWorkbook = new ExcelJS.Workbook();
+      await cashierWorkbook.xlsx.readFile(destination);
+      const cashierSheet = cashierWorkbook.getWorksheet(title);
+      assert.equal(cashierSheet.getCell("A1").value, title);
+      assert.ok(!cashierSheet.getCell("A2").value.includes(code));
+      assert.ok(!cashierSheet.getCell("A2").value.includes(name));
+      destination = path.join(directory, `${cashierJournal}.pdf`);
+      await exportLedger(cashierQuery, cashierResult, "pdf");
+      assert.ok(pdfHtml.includes(`<h1>${title}</h1>`));
+      const pdfSubtitle = pdfHtml.match(/<p>(.*?)<\/p>/)[1];
+      assert.ok(!pdfSubtitle.includes(code));
+      assert.ok(!pdfSubtitle.includes(name));
+    }
+
     const trialQuery = { ...query, kind: "trial-balance" };
     const trial = { kind: "trial-balance", rows: [], balances: [
       { code: "1001", name: "库存现金", level: 1, openingDebit: 1, openingCredit: 0, debit: 3, credit: 4, closingDebit: 5, closingCredit: 0 },

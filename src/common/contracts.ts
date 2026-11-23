@@ -337,12 +337,15 @@ export interface PeriodKey {
 
 export type LedgerKind = "general" | "subsidiary" | "journal" | "trial-balance";
 
+export type CashierJournal = "cash" | "bank";
+
 export interface LedgerQuery {
   kind: LedgerKind;
   from: PeriodKey;
   to: PeriodKey;
   accountCode?: string;
   rootsOnly?: boolean;
+  cashierJournal?: CashierJournal;
 }
 
 export interface LedgerRow {

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import { ledgerTable } from "../../../common/ledgerTable";
-import type { ChartAccount, FiscalPeriodSetting, LedgerExportFormat, LedgerKind, LedgerQuery, LedgerResult } from "../../../common/contracts";
+import { cashierJournals } from "../../../common/cashierJournal";
+import type { CashierJournal, ChartAccount, FiscalPeriodSetting, LedgerExportFormat, LedgerKind, LedgerQuery, LedgerResult } from "../../../common/contracts";
 import { useCurrentAccountingPeriod } from "../../CurrentAccountingPeriodContext";
 import { LedgerTableHeader } from "../../components/LedgerTableHeader";
 import { LedgerTableBody } from "../../components/LedgerTableBody";
@@ -20,7 +21,7 @@ function label(period: FiscalPeriodSetting): string {
   return `${String(period.year).padStart(4, "0")}年${String(period.periodNo).padStart(2, "0")}期`;
 }
 
-export function LedgerPage({ kind }: { kind: LedgerKind }): ReactElement {
+export function LedgerPage({ kind, cashierJournal }: { kind: LedgerKind; cashierJournal?: CashierJournal }): ReactElement {
   const { currentAccountingPeriod } = useCurrentAccountingPeriod();
   const { shellState } = useOutletContext<ShellContextState>();
   const [periods, setPeriods] = useState<FiscalPeriodSetting[]>([]);
@@ -55,16 +56,17 @@ export function LedgerPage({ kind }: { kind: LedgerKind }): ReactElement {
         setAccountCode(list[0]?.code ?? "");
       }).catch((error: unknown) => { if (active) setMessage(`读取账簿设置失败：${error instanceof Error ? error.message : String(error)}`); });
     return () => { active = false; };
-  }, [kind, shellState]);
+  }, [kind, cashierJournal, shellState]);
 
   const eligible = useMemo(() => kind === "general" || kind === "journal" ? accounts.filter((account) => account.level === 1) : accounts, [accounts, kind]);
   const table = result ? ledgerTable(result) : null;
   const search = async (): Promise<void> => {
-    if (!from || !to || (kind !== "trial-balance" && !accountCode)) {
-      setMessage("请选择会计期间和科目。");
+    const selectedAccountCode = cashierJournal ? cashierJournals[cashierJournal].accountCode : accountCode;
+    if (!from || !to || (kind !== "trial-balance" && !selectedAccountCode)) {
+      setMessage(cashierJournal ? "请选择会计期间。" : "请选择会计期间和科目。");
       return;
     }
-    const query: LedgerQuery = { kind, from: parseKey(from), to: parseKey(to), accountCode, rootsOnly };
+    const query: LedgerQuery = { kind, from: parseKey(from), to: parseKey(to), accountCode: selectedAccountCode, rootsOnly, cashierJournal };
     setBusy(true);
     setMessage("");
     setResult(null);
@@ -90,23 +92,23 @@ export function LedgerPage({ kind }: { kind: LedgerKind }): ReactElement {
 
   return (
     <section className="panel ledger-page">
-      <h2>{titles[kind]}</h2>
+      <h2>{cashierJournal ? cashierJournals[cashierJournal].title : titles[kind]}</h2>
       <p>仅统计已记账凭证；账套启用期以前的余额按零计算。</p>
       <div className="ledger-filters">
         <label>起始期间<select value={from} onChange={(event) => setFrom(event.target.value)}><option value="">请选择</option>{periods.map((period) =>
           <option key={key(period.year, period.periodNo)} value={key(period.year, period.periodNo)}>{label(period)}</option>)}</select></label>
         <label>结束期间<select value={to} onChange={(event) => setTo(event.target.value)}><option value="">请选择</option>{periods.map((period) =>
           <option key={key(period.year, period.periodNo)} value={key(period.year, period.periodNo)}>{label(period)}</option>)}</select></label>
-        {kind !== "trial-balance" ? <label>科目<select value={accountCode} onChange={(event) => setAccountCode(event.target.value)}>
+        {!cashierJournal && (kind !== "trial-balance" ? <label>科目<select value={accountCode} onChange={(event) => setAccountCode(event.target.value)}>
           <option value="">请选择</option>{eligible.map((account) => <option key={account.code} value={account.code}>{account.code} {account.name}</option>)}
-        </select></label> : <label><input type="checkbox" checked={rootsOnly} onChange={(event) => setRootsOnly(event.target.checked)} />仅显示总账科目</label>}
+        </select></label> : <label><input type="checkbox" checked={rootsOnly} onChange={(event) => setRootsOnly(event.target.checked)} />仅显示总账科目</label>)}
         <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void search()}>查询</button>
       </div>
       {message ? <p role="status">{message} {message.includes("映射") ? <Link to="/app/ledger/accounts">前往科目表</Link> : null}</p> : null}
       {result && table ? <>
         <div className="auth-actions">{(["pdf", "xlsx", "csv"] as const).map((format) =>
           <button key={format} type="button" className="btn" disabled={busy} onClick={() => void exportResult(format)}>导出 {format.toUpperCase()}</button>)}</div>
-        <p>{result.account ? `${result.account.code} ${result.account.name}` : queried?.rootsOnly ? "仅总账科目" : "全部科目（合计仅统计总账科目）"}</p>
+        {!cashierJournal && <p>{result.account ? `${result.account.code} ${result.account.name}` : queried?.rootsOnly ? "仅总账科目" : "全部科目（合计仅统计总账科目）"}</p>}
         <div className="voucher-result-scroll"><table className={`voucher-result-table${result.kind === "trial-balance" ? " ledger-trial-balance-table" : ""}`}>
           <LedgerTableHeader rows={table.headerRows} />
           <LedgerTableBody table={table} kind={result.kind} />

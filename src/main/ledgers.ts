@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import type { ChartAccount, LedgerQuery, LedgerResult, LedgerRow, TrialBalanceRow, VoucherLineInput } from "../common/contracts";
+import { cashierJournals } from "../common/cashierJournal";
 import { listChartAccounts } from "./chartAccounts";
 
 interface Period {
@@ -41,9 +42,16 @@ function periodLabel(period: Period): string { return `${String(period.fiscal_ye
 
 export function queryLedger(db: Database.Database, query: LedgerQuery): LedgerResult {
   if (!["general", "subsidiary", "journal", "trial-balance"].includes(query.kind)) throw new Error("账簿类型无效。");
+  if (query.cashierJournal !== undefined &&
+    (query.cashierJournal !== "cash" && query.cashierJournal !== "bank" ||
+      query.kind !== "journal" || query.accountCode !== cashierJournals[query.cashierJournal].accountCode)) {
+    throw new Error("出纳日记账查询无效。");
+  }
   const accounts = listChartAccounts(db);
   const account = query.kind === "trial-balance" ? undefined : accounts.find((item) => item.code === query.accountCode);
-  if (query.kind !== "trial-balance" && !account) throw new Error("请选择有效科目。");
+  if (query.kind !== "trial-balance" && !account) {
+    throw new Error(query.cashierJournal ? "出纳日记账对应的科目不存在，请检查科目表。" : "请选择有效科目。");
+  }
   if ((query.kind === "general" || query.kind === "journal") && account?.level !== 1) throw new Error("请选择总账科目。");
 
   const periods = db.prepare("SELECT fiscal_year, period_no, start_date, end_date FROM fiscal_periods ORDER BY start_date, fiscal_year, period_no").all() as Period[];

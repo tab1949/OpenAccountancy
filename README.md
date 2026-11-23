@@ -28,6 +28,8 @@ Bookkeeping, Report Forms, and Taxation Affairs.
 |Account Summary|科目汇总表|  
 |Cash Journal|现金日记账|
 |Bank Deposit Journal|银行存款日记账|
+
+出纳菜单中的现金日记账和银行存款日记账复用科目日记账，分别查询库存现金和银行存款，支持选择起止期间及导出。银行对账和余额调节表暂未实现。
 #### 1.1.3 Statistical Statements 统计账表  
 |Sheet|表格|
 |:---|---:|

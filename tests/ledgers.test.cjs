@@ -7,6 +7,39 @@ const { ensureBooksetSettingsSchema } = require("../dist/electron/main/booksetSe
 const { saveChartAccount, mapVoucherDetail, createAccountForVoucherDetail, listUnmappedDetails } = require("../dist/electron/main/chartAccounts.js");
 const { queryLedger } = require("../dist/electron/main/ledgers.js");
 
+test("cashier journals use the same period and account calculations as subject journals", () => {
+  const db = new Database(":memory:");
+  try {
+    db.exec("CREATE TABLE bookset_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
+    db.prepare("INSERT INTO bookset_meta VALUES ('accounting_standard_code', 'ASBE_2006'), ('enable_fiscal_year', '2026'), ('enable_fiscal_period_no', '1')").run();
+    ensureBooksetSettingsSchema(db);
+    ensureVoucherSchema(db, loadStandardSubjects("ASBE_2006"));
+    db.prepare("INSERT INTO fiscal_periods (fiscal_year,period_no,start_date,end_date) VALUES (2026,1,'2026-01-01','2026-01-31'),(2026,2,'2026-02-01','2026-02-28'),(2026,3,'2026-03-01','2026-03-31')").run();
+    const insert = db.prepare("INSERT INTO voucher_records (voucher_date,voucher_no,status,amount,payload_json,created_at,updated_at) VALUES (?,?,'posted',?,?,'','')");
+    for (const [date, no, accountCode, debit] of [
+      ["2026-01-01", 1, "1001", 10], ["2026-02-01", 2, "1001", 20],
+      ["2026-02-02", 3, "1002", 30], ["2026-03-01", 4, "1002", 40]
+    ]) {
+      insert.run(date, no, debit, JSON.stringify({ lines: [{ lineNo: 1, summary: "测试", accountCode, detail: "", debit, credit: 0 }] }));
+    }
+    const from = { year: 2026, periodNo: 2 }, to = { year: 2026, periodNo: 3 };
+    for (const [cashierJournal, accountCode, opening, entries] of [
+      ["cash", "1001", 10, [20]], ["bank", "1002", 0, [30, 40]]
+    ]) {
+      const query = { kind: "journal", from, to, accountCode, cashierJournal };
+      const result = queryLedger(db, query);
+      assert.deepEqual(result, queryLedger(db, { kind: "journal", from, to, accountCode }));
+      assert.equal(result.rows[0].balance, opening);
+      assert.deepEqual(result.rows.filter((row) => row.kind === "entry").map((row) => row.debit), entries);
+      assert.throws(() => queryLedger(db, { ...query, to: { year: 2026, periodNo: 1 } }), /有效的起止会计期间/);
+      assert.throws(() => queryLedger(db, { ...query, accountCode: accountCode === "1001" ? "1002" : "1001" }), /出纳日记账查询无效/);
+    }
+    assert.throws(() => queryLedger(db, { kind: "journal", from, to, accountCode: "1001", cashierJournal: "invalid" }), /出纳日记账查询无效/);
+    db.prepare("UPDATE voucher_account_catalog SET is_active = 0 WHERE account_code = '1001'").run();
+    assert.throws(() => queryLedger(db, { kind: "journal", from, to, accountCode: "1001", cashierJournal: "cash" }), /对应的科目不存在/);
+  } finally { db.close(); }
+});
+
 test("ledgers derive opening, period, year and trial balances from posted entries", () => {
   const db = new Database(":memory:");
   try {

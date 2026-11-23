@@ -2,13 +2,14 @@ import fs from "node:fs/promises";
 import { BrowserWindow, dialog } from "electron";
 import ExcelJS from "exceljs";
 import { formatLedgerCell, ledgerTable } from "../common/ledgerTable";
+import { cashierJournals } from "../common/cashierJournal";
 import type { LedgerExportFormat, LedgerQuery, LedgerResult, OperationResult } from "../common/contracts";
 
 const titles = { general: "科目总账", subsidiary: "科目明细账", journal: "科目日记账", "trial-balance": "科目余额表" };
 
 function description(query: LedgerQuery, result: LedgerResult): string {
   const period = (year: number, number: number): string => `${String(year).padStart(4, "0")}年${String(number).padStart(2, "0")}期`;
-  return `${period(query.from.year, query.from.periodNo)} - ${period(query.to.year, query.to.periodNo)}${result.account ? `　${result.account.code} ${result.account.name}` : ""}`;
+  return `${period(query.from.year, query.from.periodNo)} - ${period(query.to.year, query.to.periodNo)}${!query.cashierJournal && result.account ? `　${result.account.code} ${result.account.name}` : ""}`;
 }
 
 function csvCell(value: string | number): string {
@@ -22,7 +23,7 @@ function html(value: string): string {
 }
 
 export async function exportLedger(query: LedgerQuery, result: LedgerResult, format: LedgerExportFormat, owner?: BrowserWindow): Promise<OperationResult> {
-  const title = titles[result.kind];
+  const title = query.cashierJournal ? cashierJournals[query.cashierJournal].title : titles[result.kind];
   const options = { defaultPath: `${title}.${format}`, filters: [{ name: format.toUpperCase(), extensions: [format] }] };
   const choice = owner ? await dialog.showSaveDialog(owner, options) : await dialog.showSaveDialog(options);
   if (choice.canceled || !choice.filePath) return { ok: false, message: "已取消导出。" };

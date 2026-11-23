@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { JSX } from "react";
 import { HashRouter, Link, NavLink, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { AppShellState, AuthSession, RecentBookset, SystemEntryState } from "../common/contracts";

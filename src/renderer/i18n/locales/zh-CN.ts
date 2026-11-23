@@ -88,8 +88,7 @@ const zhCN = {
     todoClosePeriod: "待结转损益/待结账",
     todoBankReconcile: "银行未对账",
     todoBackup: "备份提醒",
-    todoSystemMsg: "系统消息",
-    closeBookset: "关闭账套"
+    todoSystemMsg: "系统消息"
   },
   placeholder: {
     frameworkReady: "框架已就绪",

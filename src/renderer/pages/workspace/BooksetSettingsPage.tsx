@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { JSX } from "react";
 import { useNavigate } from "react-router-dom";
 import type { AuthSession, BooksetSettings, FiscalPeriodSetting, SaveBooksetSettingsPayload } from "@common/contracts";
 import type { BooksetOperationType } from "@renderer/components/BooksetOperationModal";

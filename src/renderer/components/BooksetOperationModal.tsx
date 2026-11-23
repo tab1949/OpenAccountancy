@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { JSX } from "react";
 import type { BooksetOperationResult, BooksetSummary } from "@common/contracts";
 
 export type BooksetOperationType =

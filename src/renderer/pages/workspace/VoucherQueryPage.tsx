@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { JSX } from "react";
 import type { VoucherRecord, VoucherSearchPayload } from "@common/contracts";
 import { VoucherEditor } from "./VoucherEditor";
 

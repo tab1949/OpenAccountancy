@@ -1,3 +1,4 @@
+import type { JSX } from "react";
 import { useTranslation } from "react-i18next";
 
 export function AuthStatus({ hasDatabase }: { hasDatabase: boolean }): JSX.Element {

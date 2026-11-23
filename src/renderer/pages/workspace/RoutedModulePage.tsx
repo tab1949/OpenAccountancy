@@ -1,3 +1,4 @@
+import type { JSX } from "react";
 import { useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { AuthSession } from "@common/contracts";
@@ -48,6 +49,12 @@ export function RoutedModulePage({
   }
   if (location.pathname === "/app/period-end/account-balance") {
     return <LedgerPage key="trial-balance" kind="trial-balance" />;
+  }
+  if (location.pathname === "/app/cashier/cash-journal") {
+    return <LedgerPage key="cash-journal" kind="journal" cashierJournal="cash" />;
+  }
+  if (location.pathname === "/app/cashier/bank-journal") {
+    return <LedgerPage key="bank-journal" kind="journal" cashierJournal="bank" />;
   }
   const ledgerKind = location.pathname.match(/^\/app\/ledger\/(general|subsidiary|journal|trial-balance)$/)?.[1] as LedgerKind | undefined;
   if (ledgerKind) return <LedgerPage key={ledgerKind} kind={ledgerKind} />;

@@ -1,3 +1,4 @@
+import type { JSX } from "react";
 import { Navigate } from "react-router-dom";
 import type { SystemEntryState } from "@common/contracts";
 

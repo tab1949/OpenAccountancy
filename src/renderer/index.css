@@ -156,6 +156,10 @@ a:hover {
 	white-space: pre-wrap;
 }
 
+.ledger-table td.ledger-unposted {
+	color: #c00000;
+}
+
 .ledger-trial-balance-table thead th {
 	position: static;
 	text-align: center;
@@ -704,6 +708,14 @@ a:hover {
 	color: #788692;
 }
 
+.voucher-editor-fields {
+	border: 0;
+	padding: 0;
+	margin: 0;
+	min-width: 0;
+}
+
+.voucher-summary-cell,
 .voucher-account-cell {
 	position: relative;
 	min-width: 185px;

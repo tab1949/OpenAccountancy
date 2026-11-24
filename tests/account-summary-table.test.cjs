@@ -45,6 +45,22 @@ test("account summary repeats a category heading when its accounts span both col
   ]);
 });
 
+test("unposted accounts are marked independently in each summary column", () => {
+  const balances = [
+    { ...row("1001", "现金", "资产", 1, 1, 0), unpostedMovement: true },
+    row("1002", "银行", "资产", 1, 1, 0),
+    row("1003", "其他", "资产", 1, 1, 0),
+    { ...row("1004", "存款", "资产", 1, 1, 0), unpostedMovement: true }
+  ];
+  const rows = table(balances).rows;
+  assert.deepEqual(rows[1].unpostedCells, [0]);
+  assert.equal(rows[1].cells[0], "1001 现金（含未记账凭证）");
+  assert.equal(rows[1].cells[3], "1003 其他");
+  assert.deepEqual(rows[2].unpostedCells, [3]);
+  assert.equal(rows[2].cells[0], "1002 银行");
+  assert.equal(rows[2].cells[3], "1004 存款（含未记账凭证）");
+});
+
 test("account summary follows chart category order even when account codes interleave", () => {
   const categories = categoriesForStandard("ASBE_2006");
   assert.deepEqual(categoriesForStandard("SBE_2011"), categories.filter((category) => category !== "共同"));

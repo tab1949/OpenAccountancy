@@ -36,8 +36,8 @@ function periodForCarry(db: Database.Database, year: number, periodNo: number): 
   return period;
 }
 
-function balanceRowId(rootCode: string, detail: string, isTotal: boolean): string {
-  return JSON.stringify([rootCode, detail, isTotal]);
+function balanceRowId(rootCode: string, accountCode: string, isTotal: boolean): string {
+  return JSON.stringify([rootCode, accountCode, isTotal]);
 }
 
 export function getCarryForwardAccounts(db: Database.Database, year: number, periodNo: number): CarryForwardAccountsResult {
@@ -52,13 +52,12 @@ export function getCarryForwardAccounts(db: Database.Database, year: number, per
   const balanceByCode = new Map(balances.map((row) => [row.code, row.closingDebit - row.closingCredit]));
   const accountByCode = new Map(accounts.map((account) => [account.code, account]));
   const roots = accounts.filter((account) => account.level === 1);
-  const mappings = db.prepare(`SELECT root_code, detail, account_code FROM chart_detail_mappings
-    ORDER BY root_code, detail`).all() as Array<{ root_code: string; detail: string; account_code: string }>;
 
   return {
     accounts: roots.map((root): CarryForwardAccount => {
       const rows: CarryForwardBalanceRow[] = [{
         id: balanceRowId(root.code, "", true),
+        accountCode: root.code,
         rootCode: root.code,
         rootName: root.name,
         category: root.category,
@@ -67,17 +66,23 @@ export function getCarryForwardAccounts(db: Database.Database, year: number, per
         balance: balanceByCode.get(root.code) ?? 0,
         isTotal: true
       }];
-      for (const mapping of mappings.filter((item) => item.root_code === root.code)) {
-        const detailAccount = accountByCode.get(mapping.account_code);
-        if (!detailAccount) throw new Error(`映射的科目 ${mapping.account_code} 不存在。`);
+      for (const detailAccount of accounts.filter((item) => item.level > 1 && item.code.startsWith(root.code) &&
+        !accounts.some((child) => child.parentCode === item.code))) {
+        const names = [detailAccount.name];
+        let parent = accountByCode.get(detailAccount.parentCode ?? "");
+        while (parent && parent.level > 1) {
+          names.unshift(parent.name);
+          parent = accountByCode.get(parent.parentCode ?? "");
+        }
         rows.push({
-          id: balanceRowId(root.code, mapping.detail, false),
+          id: balanceRowId(root.code, detailAccount.code, false),
+          accountCode: detailAccount.code,
           rootCode: root.code,
           rootName: root.name,
           category: root.category,
-          detail: mapping.detail,
+          detail: names.join("-"),
           level: detailAccount.level,
-          balance: balanceByCode.get(mapping.account_code) ?? 0,
+          balance: balanceByCode.get(detailAccount.code) ?? 0,
           isTotal: false
         });
       }
@@ -168,6 +173,7 @@ export function generateCarryForwardVouchers(db: Database.Database, payload: Gen
           accountCode: row.rootCode,
           accountName: account.name,
           detail: row.detail,
+          detailAccountCode: row.accountCode,
           debit: row.balance < 0 ? cents / 100 : 0,
           credit: row.balance > 0 ? cents / 100 : 0
         };
@@ -184,6 +190,7 @@ export function generateCarryForwardVouchers(db: Database.Database, payload: Gen
           accountCode: target.row.rootCode,
           accountName: target.account.name,
           detail: target.row.detail,
+          detailAccountCode: target.row.accountCode,
           debit: difference < 0 ? -difference / 100 : 0,
           credit: difference > 0 ? difference / 100 : 0
         };

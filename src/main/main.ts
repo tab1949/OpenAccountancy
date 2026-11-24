@@ -6,7 +6,7 @@ import type { OpenDialogOptions, SaveDialogOptions } from "electron";
 import Database from "better-sqlite3";
 import { DatabaseService } from "./database";
 import { loadStandardSubjects } from "./accountingSubjects";
-import { createAccountForVoucherDetail, deleteChartAccount, listChartAccounts, listUnmappedDetails, mapVoucherDetail, saveChartAccount } from "./chartAccounts";
+import { assignVoucherDetailAccount, createAccountForVoucherDetail, createFlatAccountForVoucherDetail, deleteChartAccount, listChartAccounts, listUnmappedDetails, migrateVoucherAccountCodes, saveChartAccount } from "./chartAccounts";
 import { queryLedger } from "./ledgers";
 import { generateCarryForwardVouchers, getCarryForwardAccounts } from "./carryForward";
 import { exportLedger } from "./ledgerExport";
@@ -332,6 +332,7 @@ function withActiveBookset<T>(operation: (db: Database.Database) => T): T | null
   try {
     const standard = db.prepare("SELECT value FROM bookset_meta WHERE key = 'accounting_standard_code'").get() as { value: string } | undefined;
     ensureVoucherSchema(db, loadStandardSubjects(standard?.value ?? "ASBE_2006"));
+    migrateVoucherAccountCodes(db);
     return operation(db);
   } finally {
     db.close();
@@ -838,10 +839,16 @@ function registerIpcHandlers(): void {
     return withActiveBookset((db) => saveChartAccount(db, input, originalCode)) ?? { ok: false, message: "请先打开账套。" };
   });
 
-  ipcMain.handle("chart:create-for-detail", (_event, rootCode: string, detail: string, input: ChartAccountInput) => {
+  ipcMain.handle("chart:create-for-detail", (_event, rootCode: string, detail: string, input: ChartAccountInput, voucherIds: number[]) => {
     const auth = ensureAuthenticated();
     if (!auth.ok) return auth;
-    return withActiveBookset((db) => createAccountForVoucherDetail(db, rootCode, detail, input)) ?? { ok: false, message: "请先打开账套。" };
+    return withActiveBookset((db) => createAccountForVoucherDetail(db, rootCode, detail, input, voucherIds)) ?? { ok: false, message: "请先打开账套。" };
+  });
+
+  ipcMain.handle("chart:create-flat-for-detail", (_event, rootCode: string, detail: string, voucherIds: number[]) => {
+    const auth = ensureAuthenticated();
+    if (!auth.ok) return auth;
+    return withActiveBookset((db) => createFlatAccountForVoucherDetail(db, rootCode, detail, voucherIds)) ?? { ok: false, message: "请先打开账套。" };
   });
 
   ipcMain.handle("chart:delete", (_event, code: string) => {
@@ -858,10 +865,10 @@ function registerIpcHandlers(): void {
     return result;
   });
 
-  ipcMain.handle("chart:map-detail", (_event, rootCode: string, detail: string, accountCode: string) => {
+  ipcMain.handle("chart:assign-detail", (_event, rootCode: string, detail: string, accountCode: string, voucherIds: number[]) => {
     const auth = ensureAuthenticated();
     if (!auth.ok) return auth;
-    return withActiveBookset((db) => mapVoucherDetail(db, rootCode, detail, accountCode)) ?? { ok: false, message: "请先打开账套。" };
+    return withActiveBookset((db) => db.transaction(() => assignVoucherDetailAccount(db, rootCode, detail, accountCode, voucherIds))()) ?? { ok: false, message: "请先打开账套。" };
   });
 
   ipcMain.handle("ledger:query", (_event, query: LedgerQuery) => {

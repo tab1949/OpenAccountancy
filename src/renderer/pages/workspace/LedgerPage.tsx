@@ -46,6 +46,7 @@ export function LedgerPage({ kind, cashierJournal, closingReport }: {
   const [to, setTo] = useState("");
   const [accountCode, setAccountCode] = useState("");
   const [rootsOnly, setRootsOnly] = useState(false);
+  const [includeUnposted, setIncludeUnposted] = useState(false);
   const [showSummaryDetails, setShowSummaryDetails] = useState(false);
   const [result, setResult] = useState<LedgerResult | null>(null);
   const [queried, setQueried] = useState<LedgerQuery | null>(null);
@@ -76,7 +77,7 @@ export function LedgerPage({ kind, cashierJournal, closingReport }: {
   }, [kind, cashierJournal, closingReport, shellState]);
 
   const eligible = useMemo(() => kind === "general" || kind === "journal" ? accounts.filter((account) => account.level === 1) : accounts, [accounts, kind]);
-  const table = result ? closingReport === "account-summary" ? accountSummaryTable(result, indentStyle) : ledgerTable(result, indentStyle) : null;
+  const table = result ? closingReport === "account-summary" ? accountSummaryTable(result, indentStyle) : ledgerTable(result, indentStyle, Boolean(closingReport)) : null;
   const search = async (): Promise<void> => {
     const selectedAccountCode = cashierJournal ? cashierJournals[cashierJournal].accountCode : accountCode;
     if (!from || (!closingReport && !to) || (kind !== "trial-balance" && !selectedAccountCode)) {
@@ -84,7 +85,7 @@ export function LedgerPage({ kind, cashierJournal, closingReport }: {
       return;
     }
     const query: LedgerQuery = { kind, ...ledgerPeriodRange(from, to, Boolean(closingReport)), accountCode: selectedAccountCode,
-      rootsOnly: closingReport === "account-summary" ? !showSummaryDetails : rootsOnly, cashierJournal, closingReport };
+      rootsOnly: closingReport === "account-summary" ? !showSummaryDetails : rootsOnly, includeUnposted, cashierJournal, closingReport };
     setBusy(true);
     setMessage("");
     setResult(null);
@@ -111,7 +112,7 @@ export function LedgerPage({ kind, cashierJournal, closingReport }: {
   return (
     <section className="panel ledger-page">
       <h2>{closingReport === "account-summary" ? "科目汇总表" : closingReport === "trial-balance" ? "试算平衡表" : cashierJournal ? cashierJournals[cashierJournal].title : titles[kind]}</h2>
-      <p>仅统计已记账凭证；账套启用期以前的余额按零计算。</p>
+      <p>默认仅统计已记账凭证，可选择包含未记账凭证；账套启用期以前的余额按零计算。</p>
       <div className="ledger-filters">
         <label>{closingReport ? "会计期间" : "起始期间"}<select value={from} onChange={(event) => setFrom(event.target.value)}><option value="">请选择</option>{periods.map((period) =>
           <option key={key(period.year, period.periodNo)} value={key(period.year, period.periodNo)}>{label(period)}</option>)}</select></label>
@@ -120,12 +121,14 @@ export function LedgerPage({ kind, cashierJournal, closingReport }: {
         {!cashierJournal && (closingReport === "account-summary" ? <label><input type="checkbox" checked={showSummaryDetails} onChange={(event) => setShowSummaryDetails(event.target.checked)} />显示明细科目</label> : kind !== "trial-balance" ? <label>科目<select value={accountCode} onChange={(event) => setAccountCode(event.target.value)}>
           <option value="">请选择</option>{eligible.map((account) => <option key={account.code} value={account.code}>{account.code} {account.name}</option>)}
         </select></label> : <label><input type="checkbox" checked={rootsOnly} onChange={(event) => setRootsOnly(event.target.checked)} />仅显示总账科目</label>)}
+        <label><input type="checkbox" checked={includeUnposted} onChange={(event) => setIncludeUnposted(event.target.checked)} />包含未记账凭证</label>
         <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void search()}>查询</button>
       </div>
       {message ? <p role="status">{message} {message.includes("映射") ? <Link to="/app/ledger/accounts">前往科目表</Link> : null}</p> : null}
       {result && table ? <>
         <div className="auth-actions">{(["pdf", "xlsx", "csv"] as const).map((format) =>
           <button key={format} type="button" className="btn" disabled={busy} onClick={() => void exportResult(format)}>导出 {format.toUpperCase()}</button>)}</div>
+        {queried?.includeUnposted && <p>本次查询包含未记账凭证。</p>}
         {!cashierJournal && <p>{closingReport === "account-summary" ? "各栏合计仅统计本栏总账科目；两栏合计相加为全部总账科目的发生额。" : result.account ? `${result.account.code} ${result.account.name}` : queried?.rootsOnly ? "仅总账科目" : "全部科目（合计仅统计总账科目）"}</p>}
         <div className="voucher-result-scroll"><table className={`voucher-result-table ledger-table${result.kind === "trial-balance" ? " ledger-trial-balance-table" : ""}`}>
           <LedgerTableHeader rows={table.headerRows} />

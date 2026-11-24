@@ -25,15 +25,17 @@ test("exports ledger tables with safe text, numeric amounts and grouped trial ba
   };
   try {
     const { exportLedger } = require("../dist/electron/main/ledgerExport.js");
-    const query = { kind: "general", from: { year: 2026, periodNo: 1 }, to: { year: 2026, periodNo: 1 } };
+    const query = { kind: "general", from: { year: 2026, periodNo: 1 }, to: { year: 2026, periodNo: 1 }, includeUnposted: true };
     const result = { kind: "general", account: { code: "1001", name: "库存现金" }, balances: [],
-      rows: [{ kind: "period", date: "2026-01", summary: "=1+1", debit: 12.34, credit: 0, direction: "借", balance: 12.34 }] };
+      rows: [{ kind: "period", date: "2026-01", summary: "=1+1", debit: 12.34, credit: 0, direction: "借", balance: 12.34, unposted: true, unpostedVoucherNos: [1, 3] }] };
     destination = path.join(directory, "ledger.csv");
     assert.equal((await exportLedger(query, result, "csv")).ok, true);
     const csv = fs.readFileSync(destination, "utf8");
     assert.ok(csv.startsWith("\ufeff"));
     assert.match(csv, /"'=1\+1"/);
     assert.match(csv, /"12\.34"/);
+    assert.match(csv, /"1 含未记账凭证: #1 #3"/);
+    assert.match(csv, /包含未记账凭证/);
     destination = path.join(directory, "ledger.xlsx");
     assert.equal((await exportLedger(query, result, "xlsx")).ok, true);
     const workbook = new ExcelJS.Workbook();
@@ -42,11 +44,13 @@ test("exports ledger tables with safe text, numeric amounts and grouped trial ba
     assert.equal(sheet.getCell("D4").value, 12.34);
     assert.equal(sheet.getCell("C4").value, "=1+1");
     assert.equal(sheet.getCell("D4").numFmt, "0.00");
+    assert.equal(sheet.getCell("A4").value, "1 含未记账凭证: #1 #3");
     result.rows[0].summary = "<script>alert(1)</script>";
     destination = path.join(directory, "ledger.pdf");
     assert.equal((await exportLedger(query, result, "pdf")).ok, true);
     assert.equal(fs.readFileSync(destination, "utf8"), "%PDF-test");
     assert.match(pdfHtml, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+    assert.match(pdfHtml, /<td>1 含未记账凭证: #1 #3<\/td>/);
     assert.equal(destroyed, true);
 
     for (const [cashierJournal, code, name, title] of [
@@ -79,7 +83,7 @@ test("exports ledger tables with safe text, numeric amounts and grouped trial ba
       assert.ok(!pdfSubtitle.includes(name));
     }
 
-    const trialQuery = { ...query, kind: "trial-balance" };
+    const trialQuery = { ...query, kind: "trial-balance", includeUnposted: false };
     const trial = { kind: "trial-balance", rows: [], balances: [
       { code: "1001", name: "库存现金", category: "资产", level: 1, openingDebit: 1, openingCredit: 0, debit: 3, credit: 4, closingDebit: 5, closingCredit: 0 },
       { code: "100101", name: "备用金", category: "资产", level: 2, openingDebit: 1, openingCredit: 0, debit: 3, credit: 4, closingDebit: 5, closingCredit: 0 }
@@ -207,6 +211,26 @@ test("exports ledger tables with safe text, numeric amounts and grouped trial ba
         assert.equal(workbook.getWorksheet("科目汇总表").getCell("A6").value, "→100101 →备用金");
       }
       if (format === "pdf") assert.match(pdfHtml, /<td>→100101 →备用金<\/td>/);
+    }
+    for (const closingReport of ["trial-balance", "account-balance", "account-summary"]) {
+      const markedQuery = { ...trialQuery, closingReport, includeUnposted: true };
+      const markedResult = { ...summaryResult, balances: summaryResult.balances.map((row) =>
+        row.code === "1001" ? { ...row, unposted: true, unpostedMovement: true } : row) };
+      const title = closingReport === "trial-balance" ? "试算平衡表" : closingReport === "account-balance" ? "科目余额表" : "科目汇总表";
+      for (const format of ["csv", "xlsx", "pdf"]) {
+        destination = path.join(directory, `marked-${closingReport}.${format}`);
+        assert.equal((await exportLedger(markedQuery, markedResult, format)).ok, true);
+        if (format === "csv") assert.match(fs.readFileSync(destination, "utf8"), /库存现金（含未记账凭证）/);
+        if (format === "pdf") assert.match(pdfHtml, /<td class="unposted">(?:1001 )?库存现金（含未记账凭证）<\/td>/);
+        if (format === "xlsx") {
+          const workbook = new ExcelJS.Workbook();
+          await workbook.xlsx.readFile(destination);
+          const markedSheet = workbook.getWorksheet(title);
+          const cell = markedSheet.getCell(closingReport === "account-summary" ? "A5" : "C5");
+          assert.match(cell.value, /库存现金（含未记账凭证）/);
+          assert.equal(cell.font.color.argb, "FFC00000");
+        }
+      }
     }
   } finally {
     Module._load = original;

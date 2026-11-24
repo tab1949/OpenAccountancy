@@ -39,6 +39,11 @@ test("period-end closing reports reuse the balance table with a single period", 
     assert.match(ledger, /仅显示总账科目/);
     assert.match(ledger, /起始期间/);
     assert.match(ledger, /结束期间/);
+    assert.match(ledger, /type="checkbox"[^>]*\/>包含未记账凭证/);
+    assert.doesNotMatch(ledger, /type="checkbox"[^>]*checked[^>]*\/>包含未记账凭证/);
+    for (const kind of ["general", "subsidiary", "journal"]) {
+      assert.match(render(`/app/ledger/${kind}`), /包含未记账凭证/);
+    }
     for (const [path, title] of [
       ["/app/period-end/trial-balance", "试算平衡表"],
       ["/app/period-end/account-balance", "科目余额表"]
@@ -47,12 +52,14 @@ test("period-end closing reports reuse the balance table with a single period", 
       assert.match(markup, new RegExp(`<h2>${title}</h2>`));
       assert.match(markup, /会计期间<select/);
       assert.match(markup, /仅显示总账科目/);
+      assert.match(markup, /包含未记账凭证/);
       assert.doesNotMatch(markup, /起始期间|结束期间|placeholder-block/);
     }
     const summary = render("/app/period-end/account-summary");
     assert.match(summary, /<h2>科目汇总表<\/h2>/);
     assert.match(summary, /会计期间<select/);
     assert.match(summary, /显示明细科目/);
+    assert.match(summary, /包含未记账凭证/);
     assert.doesNotMatch(summary, /起始期间|结束期间|仅显示总账科目|placeholder-block/);
 
     const periods = [{ year: 2026, periodNo: 1 }, { year: 2026, periodNo: 2 }, { year: 2027, periodNo: 1 }];

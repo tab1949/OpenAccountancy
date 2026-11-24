@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
 import { useOutletContext } from "react-router-dom";
-import type { ChartAccount, ChartAccountInput, UnmappedDetail, VoucherRecord } from "../../../common/contracts";
-import { ChartAccountEditor } from "../../components/ChartAccountEditor";
+import type { ChartAccount, UnmappedDetail, VoucherRecord } from "../../../common/contracts";
+import { VoucherAccountDialog } from "../../components/VoucherAccountDialog";
 import type { ShellContextState } from "../types";
 
 function money(value: number): string {
@@ -22,8 +22,6 @@ export function BookkeepingPage(): ReactElement {
   const [unmapped, setUnmapped] = useState<UnmappedDetail[] | null>(null);
   const [accounts, setAccounts] = useState<ChartAccount[]>([]);
   const [standard, setStandard] = useState<"ASBE_2006" | "SBE_2011">("ASBE_2006");
-  const [editor, setEditor] = useState<ChartAccountInput | null>(null);
-  const [savingAccount, setSavingAccount] = useState(false);
 
   const refresh = async (): Promise<boolean> => {
     setLoading(true);
@@ -51,7 +49,6 @@ export function BookkeepingPage(): ReactElement {
     setPostedVouchers([]);
     setSelectedPostedIds([]);
     setUnmapped(null);
-    setEditor(null);
     void refresh();
   }, [shellState]);
 
@@ -62,6 +59,7 @@ export function BookkeepingPage(): ReactElement {
   const toggleAll = (): void => {
     setSelectedIds(selectedIds.length === vouchers.length ? [] : vouchers.map((voucher) => voucher.voucherId));
   };
+  const eligibleSelectedIds = (): number[] => selectedIds.filter((id) => !vouchers.find((voucher) => voucher.voucherId === id)?.periodClosed);
 
   const unpostSelected = async (): Promise<void> => {
     if (!selectedPostedIds.length) return;
@@ -114,45 +112,6 @@ export function BookkeepingPage(): ReactElement {
     }
   };
 
-  const startCreateAccount = (): void => {
-    const item = unmapped?.[0];
-    if (!item) return;
-    const root = accounts.find((account) => account.level === 1 && account.code === item.rootCode);
-    if (!root) { setMessage("凭证的总账科目不存在，请刷新后重试。"); return; }
-    setEditor({ parentCode: root.code, code: root.code, name: item.detail, category: root.category, direction: "借" });
-  };
-
-  const saveAccount = async (): Promise<void> => {
-    const item = unmapped?.[0];
-    if (!item || !editor || savingAccount) return;
-    setSavingAccount(true);
-    setMessage("");
-    try {
-      const result = await window.openAccountancy.createAccountForVoucherDetail(item.rootCode, item.detail, editor);
-      setMessage(result.message);
-      if (result.ok) {
-        setEditor(null);
-        const eligibleIds = selectedIds.filter((id) => !vouchers.find((voucher) => voucher.voucherId === id)?.periodClosed);
-        try {
-          const [remaining, list] = await Promise.all([
-            window.openAccountancy.listUnmappedDetails(eligibleIds),
-            window.openAccountancy.listChartAccounts()
-          ]);
-          setAccounts(list);
-          setUnmapped(remaining.length ? remaining : null);
-          setMessage(remaining.length ? "科目已新建并关联，请继续处理其他新科目。" : "科目已新建并关联，请再次点击记账。");
-        } catch (error) {
-          setUnmapped(null);
-          setMessage(`科目已新建并关联，但刷新失败，请重新点击记账：${error instanceof Error ? error.message : String(error)}`);
-        }
-      }
-    } catch (error) {
-      setMessage(`新建科目失败：${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      setSavingAccount(false);
-    }
-  };
-
   return (
     <section className="voucher-query-page">
       <div className="panel voucher-bookkeeping-toolbar">
@@ -165,14 +124,10 @@ export function BookkeepingPage(): ReactElement {
         </div>
       </div>
       {message ? <p className="auth-hint">{message}</p> : null}
-      {unmapped?.length && !editor ? <div className="panel" role="dialog" aria-label="记账前新建科目">
-        <p>是否将 {unmapped[0]!.rootName} - {unmapped[0]!.detail} 添加到科目表？（剩余 {unmapped.length} 项）</p>
-        <button type="button" className="btn btn-primary" onClick={startCreateAccount}>新建科目</button>
-        <button type="button" className="btn" onClick={() => setUnmapped(null)}>取消</button>
-      </div> : null}
-      {editor && unmapped?.length ? <ChartAccountEditor accounts={accounts.filter((account) => account.code.startsWith(unmapped[0]!.rootCode))}
-        standard={standard} value={editor} saving={savingAccount} onChange={setEditor}
-        onSave={() => void saveAccount()} onCancel={() => setEditor(null)} /> : null}
+      {unmapped?.length ? <VoucherAccountDialog voucherIds={eligibleSelectedIds()} initialDetails={unmapped}
+        initialAccounts={accounts} standard={standard}
+        onComplete={(result) => { setUnmapped(null); setMessage(`${result} 请再次点击记账。`); }}
+        onCancel={() => setUnmapped(null)} /> : null}
       <div className="panel voucher-results-panel">
         <div className="voucher-result-scroll">
           <table className="voucher-result-table">

@@ -3,12 +3,14 @@ const assert = require("node:assert/strict");
 const Database = require("better-sqlite3");
 const { loadStandardSubjects } = require("../dist/electron/main/accountingSubjects.js");
 const { ensureVoucherSchema } = require("../dist/electron/main/vouchers.js");
-const { listChartAccounts, saveChartAccount, deleteChartAccount, listUnmappedDetails, mapVoucherDetail } = require("../dist/electron/main/chartAccounts.js");
+const { ensureBooksetSettingsSchema } = require("../dist/electron/main/booksetSettings.js");
+const { listChartAccounts, saveChartAccount, deleteChartAccount, listUnmappedDetails, assignVoucherDetailAccount, migrateVoucherAccountCodes } = require("../dist/electron/main/chartAccounts.js");
 
 function createBook(standard) {
   const db = new Database(":memory:");
   db.pragma("foreign_keys = ON");
   db.exec("CREATE TABLE bookset_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL); CREATE TABLE bookset_settings (setting_key TEXT PRIMARY KEY, setting_value TEXT NOT NULL)");
+  ensureBooksetSettingsSchema(db);
   db.prepare("INSERT INTO bookset_meta VALUES ('accounting_standard_code', ?)").run(standard);
   db.prepare("INSERT INTO bookset_settings VALUES ('accountStructure', ?)").run(JSON.stringify({ levels: 4, codeLengths: [4, 2, 2, 2] }));
   ensureVoucherSchema(db, loadStandardSubjects(standard));
@@ -43,10 +45,10 @@ test("detail subjects validate structure and protect mapped accounts", () => {
     assert.equal(saveChartAccount(db, { ...input, direction: "借方" }, input.code).ok, false);
     assert.equal(saveChartAccount(db, input).ok, false);
     db.prepare("INSERT INTO voucher_records (voucher_date,voucher_no,status,amount,payload_json,created_at,updated_at) VALUES (?,?,?,?,?,?,?)")
-      .run("2026-01-01", 1, "posted", 1, JSON.stringify({ lines: [{ accountCode: "1012", detail: "支付宝" }] }), "", "");
+      .run("2026-01-01", 1, "draft", 1, JSON.stringify({ lines: [{ accountCode: "1012", detail: "支付宝" }] }), "", "");
     assert.equal(listUnmappedDetails(db).length, 1);
-    assert.equal(mapVoucherDetail(db, "1001", "支付宝", "101201").ok, false);
-    assert.equal(mapVoucherDetail(db, "1012", "支付宝", "101201").ok, true);
+    assert.equal(assignVoucherDetailAccount(db, "1001", "支付宝", "101201", [1]).ok, false);
+    assert.equal(assignVoucherDetailAccount(db, "1012", "支付宝", "101201", [1]).ok, true);
     assert.equal(saveChartAccount(db, { ...input, parentCode: "101201", code: "10120101", name: "下级" }).ok, false);
     assert.equal(listUnmappedDetails(db).length, 0);
     assert.equal(deleteChartAccount(db, "101201").ok, false);
@@ -77,7 +79,7 @@ test("legacy directions migrate without losing detail mappings", () => {
     const accounts = listChartAccounts(db);
     assert.equal(accounts.find((account) => account.code === "101201").direction, "借");
     assert.equal(accounts.find((account) => account.code === "101202").direction, "贷");
-    assert.equal(accounts.find((account) => account.code === "101201").used, true);
+    assert.equal(accounts.find((account) => account.code === "101201").used, false);
     assert.equal(db.prepare("SELECT account_code FROM chart_detail_mappings WHERE detail = ?").get("支付宝").account_code, "101201");
     assert.deepEqual(db.pragma("foreign_key_check"), []);
     assert.equal(saveChartAccount(db, { parentCode: "1012", code: "101202", name: "微信", category: "资产", direction: "借或贷" }, "101202").ok, true);

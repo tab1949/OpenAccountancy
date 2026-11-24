@@ -12,7 +12,7 @@ function description(query: LedgerQuery, result: LedgerResult): string {
   const period = (year: number, number: number): string => `${String(year).padStart(4, "0")}年${String(number).padStart(2, "0")}期`;
   const range = query.closingReport ? period(query.from.year, query.from.periodNo) :
     `${period(query.from.year, query.from.periodNo)} - ${period(query.to.year, query.to.periodNo)}`;
-  return `${range}${!query.cashierJournal && result.account ? `　${result.account.code} ${result.account.name}` : ""}${query.closingReport === "account-summary" ? "　各栏合计仅统计本栏总账科目" : ""}`;
+  return `${range}${!query.cashierJournal && result.account ? `　${result.account.code} ${result.account.name}` : ""}${query.includeUnposted ? "　包含未记账凭证" : ""}${query.closingReport === "account-summary" ? "　各栏合计仅统计本栏总账科目" : ""}`;
 }
 
 function csvCell(value: string | number): string {
@@ -32,7 +32,7 @@ export async function exportLedger(query: LedgerQuery, result: LedgerResult, for
   const choice = owner ? await dialog.showSaveDialog(owner, options) : await dialog.showSaveDialog(options);
   if (choice.canceled || !choice.filePath) return { ok: false, message: "已取消导出。" };
   const destination = choice.filePath.toLowerCase().endsWith(`.${format}`) ? choice.filePath : `${choice.filePath}.${format}`;
-  const table = query.closingReport === "account-summary" ? accountSummaryTable(result, indentStyle) : ledgerTable(result, indentStyle);
+  const table = query.closingReport === "account-summary" ? accountSummaryTable(result, indentStyle) : ledgerTable(result, indentStyle, Boolean(query.closingReport));
   const subtitle = description(query, result);
   if (format === "csv") {
     const lines = [[title], [subtitle], table.headers, ...table.rows.map((row) => row.cells)];
@@ -70,6 +70,7 @@ export async function exportLedger(query: LedgerQuery, result: LedgerResult, for
       excelRow.eachCell((cell) => {
         if (typeof cell.value === "number") cell.numFmt = result.kind === "trial-balance" ? '0.00;-0.00;;@' : "0.00";
       });
+      for (const index of row.unpostedCells ?? []) excelRow.getCell(index + 1).font = { color: { argb: "FFC00000" } };
     }
     sheet.columns.forEach((column) => { column.width = 18; });
     await workbook.xlsx.writeFile(destination);
@@ -78,9 +79,9 @@ export async function exportLedger(query: LedgerQuery, result: LedgerResult, for
     const markup = `<!doctype html><html><head><meta charset="utf-8"><style>
       body{font-family:"Microsoft YaHei",sans-serif;font-size:10px} h1{font-size:18px} table{width:100%;border-collapse:collapse}
       th,td{border:1px solid #777;padding:4px;text-align:left;overflow-wrap:anywhere;white-space:pre-wrap} .period{background:#fce8e8}.year{background:#e7f1ff}
-      thead{display:table-header-group} tr{break-inside:avoid}
+      .unposted{color:#c00000} thead{display:table-header-group} tr{break-inside:avoid}
       </style></head><body><h1>${html(title)}</h1><p>${html(subtitle)}</p><table><thead>${table.headerRows.map((row) => `<tr>${row.map((cell) => `<th${cell.colSpan ? ` colspan="${cell.colSpan}"` : ""}${cell.rowSpan ? ` rowspan="${cell.rowSpan}"` : ""}>${html(cell.label)}</th>`).join("")}</tr>`).join("")}</thead>
-      <tbody>${table.rows.map((row) => `<tr class="${html(row.kind)}">${row.cells.map((cell) => `<td>${renderCell(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table></body></html>`;
+      <tbody>${table.rows.map((row) => `<tr class="${html(row.kind)}">${row.cells.map((cell, index) => `<td${row.unpostedCells?.includes(index) ? ' class="unposted"' : ""}>${renderCell(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table></body></html>`;
     const window = new BrowserWindow({ show: false, webPreferences: { javascript: false, contextIsolation: true, sandbox: true } });
     try {
       await window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(markup)}`);

@@ -80,7 +80,7 @@ test("preload IPC selects accounting date and displays book name and code", asyn
     assert.equal(saved.ok, true, saved.message);
     assert.equal((await api.postVouchers({ voucherIds: [saved.voucherId] })).ok, false);
     assert.equal((await api.listUnmappedDetails([saved.voucherId])).length, 1);
-    const newAccount = await api.createAccountForVoucherDetail("1001", "备用金", { parentCode: "1001", code: "100101", name: "备用金", category: "资产", direction: "借或贷" });
+    const newAccount = await api.createAccountForVoucherDetail("1001", "备用金", { parentCode: "1001", code: "100101", name: "备用金", category: "资产", direction: "借或贷" }, [saved.voucherId]);
     assert.equal(newAccount.ok, true, newAccount.message);
     assert.equal((await api.listChartAccounts()).find((account) => account.code === "100101").direction, "借或贷");
     assert.ok((await api.listVoucherAccounts()).find((account) => account.accountCode === "1001").detailSuggestions.includes("备用金"));
@@ -95,10 +95,26 @@ test("preload IPC selects accounting date and displays book name and code", asyn
     const afterUnpost = await api.queryLedger({ kind: "trial-balance", from: { year: 2026, periodNo: 11 }, to: { year: 2026, periodNo: 11 }, rootsOnly: true });
     assert.equal(afterUnpost.balances.find((row) => row.code === "1002").closingCredit, 0);
     assert.equal((await api.postVouchers({ voucherIds: [saved.voucherId] })).affectedCount, 1);
-    const later = await api.saveVoucher({ voucherDate: "2026-11-06", lines, attachments: [] });
+    const laterLines = lines.map((line) => line.lineNo === 1 ? { ...line, detailAccountCode: "100101" } : line);
+    const later = await api.saveVoucher({ voucherDate: "2026-11-06", lines: laterLines, attachments: [] });
     assert.equal(later.ok, true, later.message);
     assert.deepEqual(await api.listUnmappedDetails([later.voucherId]), []);
     assert.equal((await api.postVouchers({ voucherIds: [later.voucherId] })).affectedCount, 1);
+    const flatLines = lines.map((line) => line.lineNo === 1 ? { ...line, detail: "甲（乙）" } : line);
+    const flatVoucher = await api.saveVoucher({ voucherDate: "2026-11-07", lines: flatLines, attachments: [] });
+    assert.equal(flatVoucher.ok, true, flatVoucher.message);
+    const flatAccount = await api.createFlatAccountForVoucherDetail("1001", "甲（乙）", [flatVoucher.voucherId]);
+    assert.equal(flatAccount.ok, true, flatAccount.message);
+    assert.equal((await api.listChartAccounts()).find((account) => account.name === "甲（乙）").code, "100102");
+    assert.equal((await api.postVouchers({ voucherIds: [flatVoucher.voucherId] })).affectedCount, 1);
+    const hierarchyLines = lines.map((line) => line.lineNo === 1 ? { ...line, detail: "上级-下级" } : line);
+    const hierarchyVoucher = await api.saveVoucher({ voucherDate: "2026-11-08", lines: hierarchyLines, attachments: [] });
+    assert.equal(hierarchyVoucher.ok, true, hierarchyVoucher.message);
+    assert.equal((await api.saveChartAccount({ parentCode: "1001", code: "100103", name: "上级", category: "资产", direction: "借" })).ok, true);
+    const hierarchyAccount = await api.createAccountForVoucherDetail("1001", "上级-下级",
+      { parentCode: "100103", code: "10010301", name: "下级", category: "资产", direction: "借" }, [hierarchyVoucher.voucherId]);
+    assert.equal(hierarchyAccount.ok, true, hierarchyAccount.message);
+    assert.equal((await api.postVouchers({ voucherIds: [hierarchyVoucher.voucherId] })).affectedCount, 1);
     const closed = await api.closeFiscalPeriod(2026, 11);
     assert.equal(closed.ok, true, closed.message);
     assert.equal((await api.unpostVouchers({ voucherIds: [saved.voucherId] })).ok, false);

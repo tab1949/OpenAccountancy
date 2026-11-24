@@ -12,12 +12,18 @@ export interface LedgerHeaderCell {
 export interface LedgerTable {
   headers: string[];
   headerRows: LedgerHeaderCell[][];
-  rows: Array<{ kind: string; cells: Cell[] }>;
+  rows: Array<{ kind: string; cells: Cell[]; unpostedCells?: number[] }>;
 }
 
 export function formatLedgerCell(value: Cell, kind: LedgerKind): string {
   if (typeof value !== "number") return value;
   return kind === "trial-balance" && value === 0 ? "" : value.toFixed(2);
+}
+
+function ledgerRowNumber(row: LedgerResult["rows"][number], index: number): string {
+  if (row.unpostedVoucherNos?.length) return `${index + 1} 含未记账凭证: ${row.unpostedVoucherNos.map((no) => `#${no}`).join(" ")}`;
+  if (!row.unposted) return String(index + 1);
+  return `${index + 1} ${row.kind === "period" || row.kind === "year" ? "含未记账凭证" : "未记账"}`;
 }
 
 export function accountSummaryTable(result: LedgerResult, indentStyle = DEFAULT_ACCOUNT_INDENT): LedgerTable {
@@ -31,15 +37,15 @@ export function accountSummaryTable(result: LedgerResult, indentStyle = DEFAULT_
   const split = Math.ceil(ordered.length / 2);
   const left = ordered.slice(0, split);
   const right = ordered.slice(split);
-  const column = (rows: TrialBalanceRow[]): Cell[][] => {
-    const entries: Cell[][] = [];
+  const column = (rows: TrialBalanceRow[]): Array<{ cells: Cell[]; unposted?: boolean }> => {
+    const entries: Array<{ cells: Cell[]; unposted?: boolean }> = [];
     let previous: TrialBalanceRow["category"] | undefined;
     for (const row of rows) {
       if (row.category !== previous) {
-        entries.push([`${categories.indexOf(row.category) + 1}.${row.category}类`, "", ""]);
+        entries.push({ cells: [`${categories.indexOf(row.category) + 1}.${row.category}类`, "", ""] });
         previous = row.category;
       }
-      entries.push([`${indentAccount(row.code, row.level, indentStyle)} ${indentAccount(row.name, row.level, indentStyle)}`, row.debit, row.credit]);
+      entries.push({ cells: [`${indentAccount(row.code, row.level, indentStyle)} ${indentAccount(row.name, row.level, indentStyle)}${row.unpostedMovement ? "（含未记账凭证）" : ""}`, row.debit, row.credit], unposted: row.unpostedMovement });
     }
     return entries;
   };
@@ -60,14 +66,15 @@ export function accountSummaryTable(result: LedgerResult, indentStyle = DEFAULT_
     headerRows: [headers.map((label) => ({ label }))],
     rows: [
       ...Array.from({ length: Math.max(leftCells.length, rightCells.length) }, (_, index) => ({
-        kind: "account", cells: [...(leftCells[index] ?? ["", "", ""]), ...(rightCells[index] ?? ["", "", ""])]
+        kind: "account", cells: [...(leftCells[index]?.cells ?? ["", "", ""]), ...(rightCells[index]?.cells ?? ["", "", ""])],
+        unpostedCells: [...(leftCells[index]?.unposted ? [0] : []), ...(rightCells[index]?.unposted ? [3] : [])]
       })),
       { kind: "total", cells: [...total(left), ...total(right)] }
     ]
   };
 }
 
-export function ledgerTable(result: LedgerResult, indentStyle = DEFAULT_ACCOUNT_INDENT): LedgerTable {
+export function ledgerTable(result: LedgerResult, indentStyle = DEFAULT_ACCOUNT_INDENT, closingReport = false): LedgerTable {
   if (result.kind !== "trial-balance") {
     const general = result.kind === "general";
     const headers = general ? ["序号", "期间", "摘要", "借方", "贷方", "方向", "余额"] : ["序号", "日期", "凭证号", "摘要", "借方", "贷方", "方向", "余额"];
@@ -77,8 +84,8 @@ export function ledgerTable(result: LedgerResult, indentStyle = DEFAULT_ACCOUNT_
       rows: result.rows.map((row, index) => ({
         kind: row.kind,
         cells: general
-          ? [String(index + 1), row.date, row.summary, row.debit, row.credit, row.direction, row.balance]
-          : [String(index + 1), row.date, row.voucherNo, row.summary, row.debit, row.credit, row.direction, row.balance]
+          ? [ledgerRowNumber(row, index), row.date, row.summary, row.debit, row.credit, row.direction, row.balance]
+          : [ledgerRowNumber(row, index), row.date, row.voucherNo, row.summary, row.debit, row.credit, row.direction, row.balance]
       }))
     };
   }
@@ -101,8 +108,8 @@ export function ledgerTable(result: LedgerResult, indentStyle = DEFAULT_ACCOUNT_
       ["借方", "贷方", "借方", "贷方", "借方", "贷方"].map((label) => ({ label }))
     ],
     rows: [
-      ...result.balances.map((row, index) => ({ kind: "account", cells: [String(index + 1), indentAccount(row.code, row.level, indentStyle), indentAccount(row.name, row.level, indentStyle), ...keys.map((key) => row[key])] })),
-      { kind: "total", cells: ["合计", "", "", ...totals] }
+      ...result.balances.map((row, index) => ({ kind: "account", cells: [`${index + 1}${row.unposted ? " 未记账" : ""}`, indentAccount(row.code, row.level, indentStyle), `${indentAccount(row.name, row.level, indentStyle)}${closingReport && row.unposted ? "（含未记账凭证）" : ""}`, ...keys.map((key) => row[key])], ...(closingReport && row.unposted ? { unpostedCells: [1, 2] } : {}) })),
+      { kind: "total", cells: [roots.some((row) => row.unposted) ? "合计 未记账" : "合计", "", "", ...totals] }
     ]
   };
 }

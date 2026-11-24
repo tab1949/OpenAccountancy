@@ -20,6 +20,7 @@ interface Posting {
   summary: string;
   debit: number;
   credit: number;
+  unposted: boolean;
   period: Period;
 }
 
@@ -42,6 +43,7 @@ function periodLabel(period: Period): string { return `${String(period.fiscal_ye
 
 export function queryLedger(db: Database.Database, query: LedgerQuery): LedgerResult {
   if (!["general", "subsidiary", "journal", "trial-balance"].includes(query.kind)) throw new Error("账簿类型无效。");
+  if (query.includeUnposted !== undefined && typeof query.includeUnposted !== "boolean") throw new Error("未记账凭证查询选项无效。");
   if (query.closingReport !== undefined &&
     ((query.closingReport !== "trial-balance" && query.closingReport !== "account-balance" && query.closingReport !== "account-summary") ||
       query.kind !== "trial-balance" || query.from.year !== query.to.year || query.from.periodNo !== query.to.periodNo)) {
@@ -79,11 +81,10 @@ export function queryLedger(db: Database.Database, query: LedgerQuery): LedgerRe
   if (from.start_date < enabled.start_date) throw new Error("查询起始期间不能早于账套启用期间。");
 
   const rootCodes = new Set(accounts.filter((item) => item.level === 1).map((item) => item.code));
-  const mapped = new Map((db.prepare("SELECT root_code, detail, account_code FROM chart_detail_mappings").all() as Array<{ root_code: string; detail: string; account_code: string }>)
-    .map((item) => [JSON.stringify([item.root_code, item.detail]), item.account_code]));
   const validCodes = new Set(accounts.map((item) => item.code));
-  const rows = db.prepare("SELECT voucher_id, voucher_date, voucher_no, payload_json FROM voucher_records WHERE status = 'posted' AND voucher_date <= ? ORDER BY voucher_date, voucher_no, voucher_id")
-    .all(to.end_date) as Array<{ voucher_id: number; voucher_date: string; voucher_no: number; payload_json: string }>;
+  const rows = db.prepare(`SELECT voucher_id, voucher_date, voucher_no, status, payload_json FROM voucher_records
+    WHERE (status = 'posted' OR ? = 1) AND voucher_date <= ? ORDER BY voucher_date, voucher_no, voucher_id`)
+    .all(query.includeUnposted ? 1 : 0, to.end_date) as Array<{ voucher_id: number; voucher_date: string; voucher_no: number; status: "draft" | "posted"; payload_json: string }>;
   const postings: Posting[] = [];
   for (const row of rows) {
     if (row.voucher_date < enabled.start_date) throw new Error(`凭证 ${row.voucher_id} 早于账套启用期间，无法计算期初余额。`);
@@ -98,13 +99,16 @@ export function queryLedger(db: Database.Database, query: LedgerQuery): LedgerRe
       }
       const needsDetail = query.kind === "trial-balance" ? !query.rootsOnly : account?.level !== 1 && account?.code.startsWith(line.accountCode);
       const detail = line.detail.trim();
-      const code = detail ? mapped.get(JSON.stringify([line.accountCode, detail])) : line.accountCode;
+      const code = line.detailAccountCode || (detail ? undefined : line.accountCode);
+      if (code && (!validCodes.has(code) || !code.startsWith(line.accountCode))) {
+        throw new Error(`凭证 ${row.voucher_id} 的科目编码无效。`);
+      }
       if (needsDetail && (!code || !validCodes.has(code) || !code.startsWith(line.accountCode))) {
-        throw new Error(`凭证 ${row.voucher_id} 的明细“${detail}”尚未映射，请在科目表中先完成映射。`);
+        throw new Error(`凭证 ${row.voucher_id} 的明细“${detail}”缺少有效科目编码，请先处理。`);
       }
       postings.push({ date: row.voucher_date, voucherNo: row.voucher_no, voucherId: row.voucher_id, lineNo: line.lineNo,
         rootCode: line.accountCode, accountCode: code ?? line.accountCode, summary: line.summary,
-        debit: cents(line.debit), credit: cents(line.credit), period: matches[0]! });
+        debit: cents(line.debit), credit: cents(line.credit), unposted: row.status !== "posted", period: matches[0]! });
     }
   }
   postings.sort((a, b) => a.date.localeCompare(b.date) || a.voucherNo - b.voucherNo || a.voucherId - b.voucherId || a.lineNo - b.lineNo);
@@ -116,6 +120,8 @@ export function queryLedger(db: Database.Database, query: LedgerQuery): LedgerRe
     for (const item of items) { debit = add(debit, item.debit); credit = add(credit, item.credit); }
     return { debit, credit, net: add(debit, -credit) };
   };
+  const unposted = (items: Posting[]): boolean => items.some((item) => item.unposted);
+  const unpostedNumbers = (items: Posting[]): number[] => [...new Set(items.filter((item) => item.unposted).map((item) => item.voucherNo))];
   if (query.kind === "trial-balance") {
     const visible = query.rootsOnly ? accounts.filter((item) => item.level === 1) : accounts;
     const balances: TrialBalanceRow[] = visible.map((item) => {
@@ -125,26 +131,34 @@ export function queryLedger(db: Database.Database, query: LedgerQuery): LedgerRe
       const closing = add(opening, movement.net);
       return { code: item.code, name: item.name, category: item.category, level: item.level, openingDebit: money(Math.max(opening, 0)),
         openingCredit: money(Math.max(-opening, 0)), debit: money(movement.debit), credit: money(movement.credit),
-        closingDebit: money(Math.max(closing, 0)), closingCredit: money(Math.max(-closing, 0)) };
+        closingDebit: money(Math.max(closing, 0)), closingCredit: money(Math.max(-closing, 0)),
+        ...(unposted(selected) ? { unposted: true } : {}),
+        ...(unposted(selected.filter((posting) => posting.date >= from.start_date)) ? { unpostedMovement: true } : {}) };
     });
     return { kind: query.kind, rows: [], balances };
   }
   const selected = postings.filter((posting) => matchesAccount(posting, account!));
-  let running = sum(selected.filter((posting) => posting.date < from.start_date)).net;
-  const ledgerRows: LedgerRow[] = [{ kind: "opening", date: "", voucherNo: "", summary: "期初余额", debit: 0, credit: 0, direction: direction(running), balance: money(Math.abs(running)) }];
+  const openingItems = selected.filter((posting) => posting.date < from.start_date);
+  let running = sum(openingItems).net;
+  const ledgerRows: LedgerRow[] = [{ kind: "opening", date: "", voucherNo: "", summary: "期初余额", debit: 0, credit: 0, direction: direction(running), balance: money(Math.abs(running)),
+    ...(unposted(openingItems) ? { unposted: true } : {}) }];
   for (const period of periods.slice(fromIndex, toIndex + 1)) {
     const items = selected.filter((item) => item.period.fiscal_year === period.fiscal_year && item.period.period_no === period.period_no);
     for (const item of items) {
       running = add(running, add(item.debit, -item.credit));
       if (query.kind !== "general") ledgerRows.push({ kind: "entry", date: item.date, voucherNo: String(item.voucherNo).padStart(4, "0"),
-        summary: item.summary, debit: money(item.debit), credit: money(item.credit), direction: direction(running), balance: money(Math.abs(running)) });
+        summary: item.summary, debit: money(item.debit), credit: money(item.credit), direction: direction(running), balance: money(Math.abs(running)),
+        ...(item.unposted ? { unposted: true } : {}) });
     }
     const month = sum(items);
-    const year = sum(selected.filter((item) => item.period.fiscal_year === period.fiscal_year && item.date <= period.end_date));
+    const yearItems = selected.filter((item) => item.period.fiscal_year === period.fiscal_year && item.date <= period.end_date);
+    const year = sum(yearItems);
     ledgerRows.push({ kind: "period", date: periodLabel(period), voucherNo: "", summary: "本月合计",
-      debit: money(month.debit), credit: money(month.credit), direction: direction(running), balance: money(Math.abs(running)) });
+      debit: money(month.debit), credit: money(month.credit), direction: direction(running), balance: money(Math.abs(running)),
+      ...(unposted(items) ? { unposted: true, ...(query.kind === "general" ? { unpostedVoucherNos: unpostedNumbers(items) } : {}) } : {}) });
     ledgerRows.push({ kind: "year", date: periodLabel(period), voucherNo: "", summary: "本年累计",
-      debit: money(year.debit), credit: money(year.credit), direction: direction(running), balance: money(Math.abs(running)) });
+      debit: money(year.debit), credit: money(year.credit), direction: direction(running), balance: money(Math.abs(running)),
+      ...(unposted(yearItems) ? { unposted: true } : {}) });
   }
   return { kind: query.kind, account, rows: ledgerRows, balances: [] };
 }

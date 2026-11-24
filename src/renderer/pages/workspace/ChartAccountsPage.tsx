@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
 import { useOutletContext } from "react-router-dom";
-import type { AccountCategory, ChartAccount, ChartAccountInput, UnmappedDetail } from "../../../common/contracts";
+import type { AccountCategory, ChartAccount, ChartAccountInput } from "../../../common/contracts";
 import { categoriesForStandard } from "../../../common/accountCategories";
 import { DEFAULT_ACCOUNT_INDENT, indentAccount } from "../../../common/accountIndent";
 import { ChartAccountEditor } from "../../components/ChartAccountEditor";
@@ -23,8 +23,6 @@ export function ChartAccountsPage(): ReactElement {
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
-  const [unmapped, setUnmapped] = useState<UnmappedDetail[] | null>(null);
-  const [mappingCode, setMappingCode] = useState("");
 
   const refresh = async (): Promise<void> => {
     setLoading(true);
@@ -45,7 +43,6 @@ export function ChartAccountsPage(): ReactElement {
     setEditor(null);
     setEditing(false);
     setDeleting(false);
-    setUnmapped(null);
     void refresh();
   }, [shellState]);
 
@@ -102,26 +99,6 @@ export function ChartAccountsPage(): ReactElement {
       setMessage(`删除科目失败：${error instanceof Error ? error.message : String(error)}`);
     }
   };
-  const loadUnmapped = async (): Promise<void> => {
-    try {
-      setUnmapped(await window.openAccountancy.listUnmappedDetails());
-      setMappingCode("");
-    } catch (error) {
-      setMessage(`读取未映射明细失败：${error instanceof Error ? error.message : String(error)}`);
-    }
-  };
-  const mapFirst = async (): Promise<void> => {
-    const item = unmapped?.[0];
-    if (!item) return;
-    if (!window.confirm(`确认将 ${item.rootCode} 的“${item.detail}”映射到 ${mappingCode}？该映射适用于此总账科目下所有同名凭证明细，确认后不可修改。`)) return;
-    try {
-      const result = await window.openAccountancy.mapVoucherDetail(item.rootCode, item.detail, mappingCode);
-      setMessage(result.message);
-      if (result.ok) { await refresh(); await loadUnmapped(); }
-    } catch (error) {
-      setMessage(`映射失败：${error instanceof Error ? error.message : String(error)}`);
-    }
-  };
 
   return (
     <section className="panel">
@@ -131,25 +108,9 @@ export function ChartAccountsPage(): ReactElement {
         <button type="button" className="btn" onClick={() => { setDeleting(!deleting); setEditing(false); setEditor(null); }}>{deleting ? "退出删除" : "删除"}</button>
         <button type="button" className="btn" onClick={startEditing}>{editing ? "退出修改" : "修改"}</button>
         <button type="button" className="btn" onClick={() => setSearchOpen(true)}>查找</button>
-        <button type="button" className="btn" onClick={() => void loadUnmapped()}>映射凭证明细</button>
         {search ? <button type="button" className="btn" onClick={() => { setSearch(""); setSearchInput(""); }}>清除查找</button> : null}
       </div>
       {message ? <p role="status">{message}</p> : null}
-      {unmapped ? (
-        <div className="chart-dialog" role="dialog" aria-label="映射凭证明细">
-          {unmapped.length ? <>
-            <p>待映射 {unmapped.length} 项：{unmapped[0]!.rootCode} {unmapped[0]!.rootName} - {unmapped[0]!.detail}（{unmapped[0]!.count} 行）</p>
-            <label>对应末级科目<select value={mappingCode} onChange={(event) => setMappingCode(event.target.value)}>
-              <option value="">请选择</option>
-              {accounts.filter((account) => account.level > 1 && account.code.startsWith(unmapped[0]!.rootCode) &&
-                !accounts.some((other) => other.parentCode === account.code)).map((account) => <option key={account.code} value={account.code}>{account.code} {account.name}</option>)}
-            </select></label>
-            <button type="button" className="btn btn-primary" disabled={!mappingCode} onClick={() => void mapFirst()}>确认映射</button>
-            <button type="button" className="btn" onClick={startAdd}>新增科目</button>
-          </> : <p>没有待映射的凭证明细。</p>}
-          <button type="button" className="btn" onClick={() => setUnmapped(null)}>关闭</button>
-        </div>
-      ) : null}
       {searchOpen ? (
         <div className="chart-dialog" role="dialog" aria-label="查找科目">
           <label>科目编码或名称<input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} /></label>

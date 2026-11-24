@@ -10,12 +10,13 @@ interface ChartAccountEditorProps {
   onSave: () => void;
   onCancel: () => void;
   saving?: boolean;
+  modal?: boolean;
 }
 
-export function ChartAccountEditor({ accounts, standard, value, onChange, onSave, onCancel, saving = false }: ChartAccountEditorProps): ReactElement {
+export function ChartAccountEditor({ accounts, standard, value, onChange, onSave, onCancel, saving = false, modal = false }: ChartAccountEditorProps): ReactElement {
   const categories = categoriesForStandard(standard);
   return (
-    <div className="chart-dialog" role="dialog" aria-label="新增科目">
+    <div className="chart-dialog" role="dialog" aria-modal={modal || undefined} aria-label="新增科目">
       <h3>新增科目</h3>
       <label>上级科目
         <select value={value.parentCode} disabled={saving} onChange={(event) => {

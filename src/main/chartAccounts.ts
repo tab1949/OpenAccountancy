@@ -76,13 +76,23 @@ export function listChartAccounts(db: Database.Database): ChartAccount[] {
   const roots = db.prepare("SELECT account_code, account_name FROM voucher_account_catalog WHERE is_active = 1 ORDER BY account_code")
     .all() as Array<{ account_code: string; account_name: string }>;
   const rows = db.prepare("SELECT code, name, category, direction, parent_code, level FROM chart_detail_accounts ORDER BY code").all() as AccountRow[];
-  const used = new Set((db.prepare("SELECT DISTINCT account_code FROM chart_detail_mappings").all() as Array<{ account_code: string }>).map((row) => row.account_code));
+  const used = new Set<string>();
+  const hasVouchers = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'voucher_records'").get();
+  if (hasVouchers) {
+    const vouchers = db.prepare("SELECT voucher_id, payload_json FROM voucher_records").all() as Array<{ voucher_id: number; payload_json: string }>;
+    for (const voucher of vouchers) {
+      const payload = JSON.parse(voucher.payload_json) as { lines: VoucherLineInput[] };
+      if (!Array.isArray(payload.lines)) throw new Error(`凭证 ${voucher.voucher_id} 的分录数据无效。`);
+      for (const line of payload.lines) if (line.detailAccountCode && line.detailAccountCode !== line.accountCode) used.add(line.detailAccountCode);
+    }
+  }
   const result: ChartAccount[] = roots.map((root) => {
     const meta = standardAttributes[root.account_code];
     if (!meta) throw new Error(`总账科目 ${root.account_code} 缺少准则属性。`);
     if (meta.direction !== "借" && meta.direction !== "贷" && meta.direction !== "借或贷") {
       throw new Error(`总账科目 ${root.account_code} 的余额方向无效。`);
     }
+
     return { code: root.account_code, name: root.account_name, category: meta.category as AccountCategory, direction: meta.direction,
       parentCode: null, level: 1, used: true };
   });
@@ -103,6 +113,68 @@ function accountStructure(db: Database.Database): { levels: number; codeLengths:
     throw new Error("账套科目结构无效。");
   }
   return value;
+}
+
+export function migrateVoucherAccountCodes(db: Database.Database): void {
+  ensureChartSchema(db);
+  db.transaction(() => {
+    const version = db.prepare("SELECT value FROM bookset_meta WHERE key = 'voucher_account_codes_version'").get() as { value: string } | undefined;
+    if (version?.value === "1") return;
+    const accounts = listChartAccounts(db);
+    const roots = new Map(accounts.filter((a) => a.level === 1).map((a) => [a.code, a]));
+    const codes = new Set(accounts.map((a) => a.code));
+    const lookup = db.prepare("SELECT account_code FROM chart_detail_mappings WHERE root_code = ? AND detail = ?");
+    const insert = db.prepare("INSERT INTO chart_detail_accounts (code, name, category, direction, parent_code, level) VALUES (?, ?, ?, ?, ?, 2)");
+    const update = db.prepare("UPDATE voucher_records SET payload_json = ? WHERE voucher_id = ?");
+    db.exec("CREATE TABLE IF NOT EXISTS voucher_account_code_migration_backup (voucher_id INTEGER PRIMARY KEY, payload_json TEXT NOT NULL)");
+    const backup = db.prepare("INSERT INTO voucher_account_code_migration_backup (voucher_id, payload_json) VALUES (?, ?)");
+    const allocated = new Map<string, string>();
+    const rows = db.prepare("SELECT voucher_id, payload_json FROM voucher_records ORDER BY voucher_id").all() as Array<{ voucher_id: number; payload_json: string }>;
+    for (const row of rows) {
+      backup.run(row.voucher_id, row.payload_json);
+      const payload = JSON.parse(row.payload_json) as { lines: VoucherLineInput[] };
+      if (!Array.isArray(payload.lines)) throw new Error(`凭证 ${row.voucher_id} 的分录数据无效。`);
+      for (const line of payload.lines) {
+        if (!line.accountCode || line.detailAccountCode) continue;
+        const root = roots.get(line.accountCode);
+        if (!root || typeof line.detail !== "string") throw new Error(`凭证 ${row.voucher_id} 的科目数据无效。`);
+        const detail = line.detail.trim();
+        if (!detail) { line.detailAccountCode = root.code; continue; }
+        const mapping = lookup.get(root.code, detail) as { account_code: string } | undefined;
+        if (mapping) {
+          if (!codes.has(mapping.account_code) || !mapping.account_code.startsWith(root.code) ||
+            accounts.some((account) => account.parentCode === mapping.account_code)) {
+            throw new Error(`凭证 ${row.voucher_id} 的历史科目编码无效。`);
+          }
+          line.detailAccountCode = mapping.account_code;
+          continue;
+        }
+        const key = JSON.stringify([root.code, detail]);
+        let code = allocated.get(key);
+        if (!code) {
+          const structure = accountStructure(db);
+          if (structure.levels < 2) throw new Error(`科目 ${root.code} 无法新增明细，历史凭证迁移已取消。`);
+          const length = structure.codeLengths[1]!;
+          let segment = 1;
+          while (String(segment).length <= length && codes.has(root.code + String(segment).padStart(length, "0"))) segment++;
+          if (String(segment).length > length) {
+            if (codes.has(root.code + "0".repeat(length))) throw new Error(`科目 ${root.code} 的编码已用尽，历史凭证迁移已取消。`);
+            segment = 0;
+          }
+          code = root.code + String(segment).padStart(length, "0");
+          insert.run(code, detail, root.category, root.direction, root.code);
+          codes.add(code);
+          allocated.set(key, code);
+        }
+        line.detailAccountCode = code;
+      }
+      update.run(JSON.stringify(payload), row.voucher_id);
+    }
+    db.exec(`CREATE TABLE IF NOT EXISTS chart_detail_mappings_archive AS SELECT * FROM chart_detail_mappings WHERE 0;
+      INSERT INTO chart_detail_mappings_archive SELECT * FROM chart_detail_mappings;
+      DELETE FROM chart_detail_mappings;`);
+    db.prepare("INSERT OR REPLACE INTO bookset_meta (key, value) VALUES ('voucher_account_codes_version', '1')").run();
+  })();
 }
 
 export function saveChartAccount(db: Database.Database, input: ChartAccountInput, originalCode?: string): OperationResult {
@@ -154,7 +226,6 @@ export function listUnmappedDetails(db: Database.Database, voucherIds?: number[]
   ensureChartSchema(db);
   const rows = db.prepare("SELECT voucher_id, payload_json FROM voucher_records ORDER BY voucher_date, voucher_no, voucher_id").all() as Array<{ voucher_id: number; payload_json: string }>;
   const selected = voucherIds ? new Set(voucherIds) : null;
-  const mapped = db.prepare("SELECT 1 FROM chart_detail_mappings WHERE root_code = ? AND detail = ?");
   const accounts = new Map(listChartAccounts(db).filter((account) => account.level === 1).map((account) => [account.code, account.name]));
   const result = new Map<string, UnmappedDetail>();
   for (const row of rows) {
@@ -163,7 +234,7 @@ export function listUnmappedDetails(db: Database.Database, voucherIds?: number[]
     if (!Array.isArray(payload.lines)) throw new Error(`凭证 ${row.voucher_id} 的分录数据无效。`);
     for (const line of payload.lines) {
       const detail = line.detail.trim();
-      if (!line.accountCode || !detail || mapped.get(line.accountCode, detail)) continue;
+      if (!line.accountCode || !detail || line.detailAccountCode) continue;
       const rootName = accounts.get(line.accountCode);
       if (!rootName) throw new Error(`凭证 ${row.voucher_id} 的总账科目 ${line.accountCode} 不存在。`);
       const key = JSON.stringify([line.accountCode, detail]);
@@ -175,21 +246,43 @@ export function listUnmappedDetails(db: Database.Database, voucherIds?: number[]
   return [...result.values()];
 }
 
-export function mapVoucherDetail(db: Database.Database, rootCode: string, detail: string, accountCode: string): OperationResult {
-  const accounts = listChartAccounts(db);
-  const root = accounts.find((item) => item.code === rootCode && item.level === 1);
-  const account = accounts.find((item) => item.code === accountCode && item.level > 1 && item.code.startsWith(rootCode));
-  if (!root || !account || !detail.trim()) return { ok: false, message: "请选择该总账科目下的有效明细科目。" };
-  if (accounts.some((item) => item.parentCode === accountCode)) return { ok: false, message: "请选择末级明细科目。" };
-  if (!listUnmappedDetails(db).some((item) => item.rootCode === rootCode && item.detail === detail)) {
-    return { ok: false, message: "该明细已映射或不存在，请刷新后重试。" };
+export function assignVoucherDetailAccount(db: Database.Database, rootCode: string, detail: string, accountCode: string, voucherIds: number[]): OperationResult {
+  if (!Array.isArray(voucherIds) || voucherIds.length === 0 || voucherIds.some((id) => !Number.isInteger(id) || id <= 0)) {
+    return { ok: false, message: "请选择有效凭证。" };
   }
-  db.prepare("INSERT INTO chart_detail_mappings (root_code, detail, account_code) VALUES (?, ?, ?)")
-    .run(rootCode, detail, accountCode);
-  return { ok: true, message: "凭证明细已映射到科目。" };
+  return db.transaction(() => {
+    const accounts = listChartAccounts(db);
+    const root = accounts.find((item) => item.code === rootCode && item.level === 1);
+    const account = accounts.find((item) => item.code === accountCode && item.level > 1 && item.code.startsWith(rootCode));
+    if (!root || !account || !detail.trim()) return { ok: false, message: "请选择该总账科目下的有效明细科目。" };
+    if (accounts.some((item) => item.parentCode === accountCode)) return { ok: false, message: "请选择末级明细科目。" };
+    let count = 0;
+    const get = db.prepare("SELECT status, voucher_date, payload_json FROM voucher_records WHERE voucher_id = ?");
+    const getPeriod = db.prepare("SELECT status FROM fiscal_periods WHERE start_date <= ? AND end_date >= ? ORDER BY fiscal_year, period_no LIMIT 1");
+    const getLegacyPeriod = db.prepare("SELECT status FROM voucher_period_state WHERE period_key = ?");
+    const update = db.prepare("UPDATE voucher_records SET payload_json = ? WHERE voucher_id = ?");
+    for (const id of new Set(voucherIds)) {
+      const row = get.get(id) as { status: string; voucher_date: string; payload_json: string } | undefined;
+      if (!row || row.status !== "draft") throw new Error(`凭证 ${id} 不存在或不再是未记账状态，请刷新后重试。`);
+      const period = getPeriod.get(row.voucher_date, row.voucher_date) as { status: string } | undefined;
+      const legacy = period ? undefined : getLegacyPeriod.get(row.voucher_date.slice(0, 7)) as { status: string } | undefined;
+      if ((period ?? legacy)?.status === "closed") throw new Error(`凭证 ${id} 所属期间已结账。`);
+      const payload = JSON.parse(row.payload_json) as { lines: VoucherLineInput[] };
+      if (!Array.isArray(payload.lines)) throw new Error(`凭证 ${id} 的分录数据无效。`);
+      let changed = false;
+      for (const line of payload.lines) {
+        if (line.accountCode === rootCode && line.detail.trim() === detail && !line.detailAccountCode) {
+          line.detailAccountCode = accountCode;
+          count++; changed = true;
+        }
+      }
+      if (changed) update.run(JSON.stringify(payload), id);
+    }
+    return count ? { ok: true, message: "凭证已使用指定科目编码。" } : { ok: false, message: "待处理明细不存在，请刷新后重试。" };
+  })();
 }
 
-export function createAccountForVoucherDetail(db: Database.Database, rootCode: string, detail: string, input: ChartAccountInput): OperationResult {
+export function createAccountForVoucherDetail(db: Database.Database, rootCode: string, detail: string, input: ChartAccountInput, voucherIds: number[]): OperationResult {
   ensureChartSchema(db);
   try {
     return db.transaction(() => {
@@ -199,25 +292,46 @@ export function createAccountForVoucherDetail(db: Database.Database, rootCode: s
       if (!root || !parent || !parent.code.startsWith(root.code)) {
         return { ok: false, message: "上级科目必须属于该凭证的总账科目。" };
       }
-      if (!listUnmappedDetails(db).some((item) => item.rootCode === rootCode && item.detail === detail)) {
+      if (!listUnmappedDetails(db, voucherIds).some((item) => item.rootCode === rootCode && item.detail === detail)) {
         return { ok: false, message: "该明细已关联或不存在，请刷新后重试。" };
-      }
-      const name = input.name.trim();
-      const getMapping = db.prepare("SELECT account_code FROM chart_detail_mappings WHERE root_code = ? AND detail = ?");
-      if (name && name !== detail && getMapping.get(rootCode, name)) {
-        return { ok: false, message: "该科目名称已关联其他明细科目，请修改名称。" };
       }
       const saved = saveChartAccount(db, input);
       if (!saved.ok) return saved;
-      const mapped = mapVoucherDetail(db, rootCode, detail, input.code);
+      const mapped = assignVoucherDetailAccount(db, rootCode, detail, input.code, voucherIds);
       if (!mapped.ok) throw new Error(mapped.message);
-      if (name !== detail) {
-        db.prepare("INSERT INTO chart_detail_mappings (root_code, detail, account_code) VALUES (?, ?, ?)")
-          .run(rootCode, name, input.code);
-      }
+
       return { ok: true, message: "科目已新建并关联凭证明细。" };
     })();
   } catch (error) {
     return { ok: false, message: `新建科目失败：${error instanceof Error ? error.message : String(error)}` };
   }
+}
+
+export function createFlatAccountForVoucherDetail(db: Database.Database, rootCode: string, detail: string, voucherIds: number[]): OperationResult {
+  ensureChartSchema(db);
+  return db.transaction(() => {
+    const accounts = listChartAccounts(db);
+    const root = accounts.find((account) => account.code === rootCode && account.level === 1);
+    if (!root || !detail.trim()) return { ok: false, message: "总账科目或凭证明细无效。" };
+    if (!listUnmappedDetails(db, voucherIds).some((item) => item.rootCode === rootCode && item.detail === detail)) {
+      return { ok: false, message: "该明细已关联或不存在，请刷新后重试。" };
+    }
+    const structure = accountStructure(db);
+    if (structure.levels < 2) return { ok: false, message: "账套科目结构不允许新增明细科目。" };
+    const length = structure.codeLengths[1]!;
+    const used = new Set(accounts.map((account) => account.code));
+    let segment = 1;
+    while (String(segment).length <= length && used.has(rootCode + String(segment).padStart(length, "0"))) segment++;
+    if (String(segment).length > length) {
+      if (used.has(rootCode + "0".repeat(length))) return { ok: false, message: "该总账科目下没有可用的科目编码。" };
+      segment = 0;
+    }
+    const input: ChartAccountInput = { parentCode: rootCode, code: rootCode + String(segment).padStart(length, "0"),
+      name: detail, category: root.category, direction: root.direction };
+    const saved = saveChartAccount(db, input);
+    if (!saved.ok) return saved;
+    const mapped = assignVoucherDetailAccount(db, rootCode, detail, input.code, voucherIds);
+    if (!mapped.ok) throw new Error(mapped.message);
+    return { ok: true, message: "完整明细已新增并关联科目。" };
+  })();
 }

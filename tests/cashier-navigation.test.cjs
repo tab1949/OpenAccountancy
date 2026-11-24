@@ -35,6 +35,7 @@ test("cashier journals reuse the ledger page with period filters and no account 
       assert.match(markup, new RegExp(`<h2>${config.title}</h2>`));
       assert.match(markup, /起始期间/);
       assert.match(markup, /结束期间/);
+      assert.match(markup, /包含未记账凭证/);
       assert.match(markup, />查询<\/button>/);
       assert.doesNotMatch(markup, /科目<select|placeholder-block/);
     }

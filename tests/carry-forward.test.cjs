@@ -29,7 +29,7 @@ function addPostedEntry(db, no, date, debitAccount, creditAccount, amount) {
     .run(date, no, amount, JSON.stringify({ lines }));
 }
 
-test("carry detail rows retain their mapped account level", () => {
+test("carry detail rows retain their account code and level", () => {
   const db = createBook();
   try {
     const { listChartAccounts } = require("../dist/electron/main/chartAccounts.js");
@@ -38,10 +38,9 @@ test("carry detail rows retain their mapped account level", () => {
       .run("100101", "二级", "资产", "借", "1001", 2);
     db.prepare("INSERT INTO chart_detail_accounts (code,name,category,direction,parent_code,level) VALUES (?,?,?,?,?,?)")
       .run("10010101", "三级", "资产", "借", "100101", 3);
-    db.prepare("INSERT INTO chart_detail_mappings (root_code,detail,account_code) VALUES (?,?,?)").run("1001", "三级", "10010101");
     const cash = getCarryForwardAccounts(db, 2026, 2).accounts.find((account) => account.code === "1001");
     assert.equal(cash.rows.find((row) => row.isTotal).level, 1);
-    assert.equal(cash.rows.find((row) => row.detail === "三级").level, 3);
+    assert.equal(cash.rows.find((row) => row.accountCode === "10010101").level, 3);
   } finally { db.close(); }
 });
 

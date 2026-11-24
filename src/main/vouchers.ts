@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import { ensureChartSchema, listUnmappedDetails } from "./chartAccounts";
+import { ensureChartSchema, listChartAccounts, listUnmappedDetails } from "./chartAccounts";
 import type {
   BookkeepingResult,
   OperationResult,
@@ -203,6 +203,7 @@ function validateVoucher(db: Database.Database, input: VoucherInput): { ok: true
 
   let debitCents = 0;
   let creditCents = 0;
+  const chart = listChartAccounts(db);
 
   for (const line of populated) {
     if (!line.summary.trim()) {
@@ -221,8 +222,15 @@ function validateVoucher(db: Database.Database, input: VoucherInput): { ok: true
         requires_attachment: number;
         fixed_details_json: string;
       } | undefined;
-    if (!account || account.account_name !== line.accountName) {
+    if (!account) {
       return { ok: false, message: `第 ${line.lineNo} 行科目无效，请重新选择。` };
+    }
+    if (line.detailAccountCode) {
+      const target = chart.find((item) => item.code === line.detailAccountCode);
+      if (!target || !target.code.startsWith(line.accountCode) ||
+        (target.code !== line.accountCode && chart.some((item) => item.parentCode === target.code))) {
+        return { ok: false, message: `第 ${line.lineNo} 行明细科目编码无效，请重新选择。` };
+      }
     }
 
     const fixedDetails = JSON.parse(account.fixed_details_json) as string[];
@@ -272,7 +280,6 @@ export function listVoucherAccounts(db: Database.Database, keyword = ""): Vouche
     SELECT detail_name FROM voucher_detail_hints
     WHERE account_code = ? ORDER BY use_count DESC, datetime(last_used_at) DESC LIMIT 10
   `);
-  const getMappedDetails = db.prepare("SELECT detail FROM chart_detail_mappings WHERE root_code = ? ORDER BY detail");
 
   return rows.map((row) => ({
     accountCode: row.account_code,
@@ -281,7 +288,6 @@ export function listVoucherAccounts(db: Database.Database, keyword = ""): Vouche
     requiresAttachment: row.requires_attachment === 1,
     detailOptions: JSON.parse(row.fixed_details_json) as string[],
     detailSuggestions: [...new Set([
-      ...(getMappedDetails.all(row.account_code) as Array<{ detail: string }>).map((item) => item.detail),
       ...(getHints.all(row.account_code) as Array<{ detail_name: string }>).map((item) => item.detail_name)
     ])]
   }));
@@ -301,8 +307,7 @@ export function getVoucherDetailSuggestions(db: Database.Database, accountCode: 
     SELECT detail_name FROM voucher_detail_hints
     WHERE account_code = ? ORDER BY use_count DESC, datetime(last_used_at) DESC LIMIT 10
   `).all(accountCode) as Array<{ detail_name: string }>;
-  const mapped = db.prepare("SELECT detail FROM chart_detail_mappings WHERE root_code = ? ORDER BY detail").all(accountCode) as Array<{ detail: string }>;
-  return [...new Set([...fixed, ...mapped.map((item) => item.detail), ...hints.map((item) => item.detail_name)])];
+  return [...new Set([...fixed, ...hints.map((item) => item.detail_name)])];
 }
 
 export function searchVouchers(db: Database.Database, query: VoucherSearchPayload): VoucherRecord[] {
@@ -362,7 +367,9 @@ export function saveVoucher(db: Database.Database, input: VoucherInput, confirmU
   }
 
   const now = new Date().toISOString();
-  const payloadJson = JSON.stringify({ lines: input.lines, attachments: input.attachments });
+  const payloadJson = JSON.stringify({ lines: input.lines.map((line) => ({
+    ...line, detailAccountCode: line.detailAccountCode || (!line.detail.trim() ? line.accountCode : undefined)
+  })), attachments: input.attachments });
   const transaction = db.transaction(() => {
     let voucherId = input.voucherId;
     let existing: VoucherRow | undefined;
@@ -525,7 +532,7 @@ export function postVouchers(db: Database.Database, voucherIds: number[]): Bookk
     }
     if (!candidates.length) return { count: 0, skipped, periods: 0, roots: 0, details: 0 };
     const unmapped = listUnmappedDetails(db, candidates.map((row) => row.voucher_id));
-    if (unmapped.length) throw new Error(`存在 ${unmapped.length} 项未映射的凭证明细，请先完成科目映射。`);
+    if (unmapped.length) throw new Error(`存在 ${unmapped.length} 项尚未指定科目编码的凭证明细，请先处理。`);
     const periods = new Set<string>();
     const roots = new Set<string>();
     const details = new Set<string>();
@@ -536,7 +543,7 @@ export function postVouchers(db: Database.Database, voucherIds: number[]): Bookk
       .get() as { start_date: string } | undefined;
     if (!enabled) throw new Error("账套启用期间不存在，无法记账。");
     const getVoucher = db.prepare("SELECT payload_json FROM voucher_records WHERE voucher_id = ?");
-    const getMapping = db.prepare("SELECT account_code FROM chart_detail_mappings WHERE root_code = ? AND detail = ?");
+    const accounts = listChartAccounts(db);
     candidates.sort((a, b) => a.voucher_date.localeCompare(b.voucher_date) || a.voucher_no - b.voucher_no || a.voucher_id - b.voucher_id);
     for (const row of candidates) {
       if (row.voucher_date < enabled.start_date) throw new Error(`凭证 ${row.voucher_id} 早于账套启用期间，无法记账。`);
@@ -548,10 +555,14 @@ export function postVouchers(db: Database.Database, voucherIds: number[]): Bookk
       for (const line of payload.lines) {
         if (!line.accountCode) continue;
         roots.add(line.accountCode);
-        if (line.detail.trim()) {
-          const mapped = getMapping.get(line.accountCode, line.detail.trim()) as { account_code: string } | undefined;
-          if (!mapped) throw new Error(`凭证 ${row.voucher_id} 的明细尚未映射。`);
-          details.add(mapped.account_code);
+        const code = line.detailAccountCode || (!line.detail.trim() ? line.accountCode : undefined);
+        const target = accounts.find((item) => item.code === code);
+        if (!target || !target.code.startsWith(line.accountCode) ||
+          (target.level > 1 && accounts.some((item) => item.parentCode === target.code))) {
+          throw new Error(`凭证 ${row.voucher_id} 的科目编码无效。`);
+        }
+        if (target.level > 1) {
+          details.add(target.code);
         }
       }
       db.prepare("UPDATE voucher_records SET status = 'posted', updated_at = ? WHERE voucher_id = ?").run(now, row.voucher_id);

@@ -251,6 +251,7 @@ export interface VoucherLineInput {
   accountCode: string;
   accountName: string;
   detail: string;
+  detailAccountCode?: string;
   debit: number;
   credit: number;
 }
@@ -307,6 +308,7 @@ export type CarryForwardKind = "custom" | "cogs" | "profit-loss";
 
 export interface CarryForwardBalanceRow {
   id: string;
+  accountCode: string;
   rootCode: string;
   rootName: string;
   category: AccountCategory;
@@ -383,6 +385,7 @@ export interface LedgerQuery {
   to: PeriodKey;
   accountCode?: string;
   rootsOnly?: boolean;
+  includeUnposted?: boolean;
   cashierJournal?: CashierJournal;
   closingReport?: "trial-balance" | "account-balance" | "account-summary";
 }
@@ -396,6 +399,8 @@ export interface LedgerRow {
   credit: number;
   direction: "借" | "贷" | "平";
   balance: number;
+  unposted?: boolean;
+  unpostedVoucherNos?: number[];
 }
 
 export interface TrialBalanceRow {
@@ -409,6 +414,8 @@ export interface TrialBalanceRow {
   credit: number;
   closingDebit: number;
   closingCredit: number;
+  unposted?: boolean;
+  unpostedMovement?: boolean;
 }
 
 export interface LedgerResult {
@@ -477,10 +484,11 @@ export interface OpenAccountancyApi {
   getRecentBooksets: () => Promise<RecentBookset[]>;
   listChartAccounts: () => Promise<ChartAccount[]>;
   saveChartAccount: (input: ChartAccountInput, originalCode?: string) => Promise<OperationResult>;
-  createAccountForVoucherDetail: (rootCode: string, detail: string, input: ChartAccountInput) => Promise<OperationResult>;
+  createAccountForVoucherDetail: (rootCode: string, detail: string, input: ChartAccountInput, voucherIds: number[]) => Promise<OperationResult>;
+  createFlatAccountForVoucherDetail: (rootCode: string, detail: string, voucherIds: number[]) => Promise<OperationResult>;
   deleteChartAccount: (code: string) => Promise<OperationResult>;
   listUnmappedDetails: (voucherIds?: number[]) => Promise<UnmappedDetail[]>;
-  mapVoucherDetail: (rootCode: string, detail: string, accountCode: string) => Promise<OperationResult>;
+  assignVoucherDetailAccount: (rootCode: string, detail: string, accountCode: string, voucherIds: number[]) => Promise<OperationResult>;
   queryLedger: (query: LedgerQuery) => Promise<LedgerResult>;
   getCarryForwardAccounts: (year: number, periodNo: number) => Promise<CarryForwardAccountsResult>;
   generateCarryForwardVouchers: (payload: GenerateCarryForwardPayload) => Promise<CarryForwardMutationResult>;

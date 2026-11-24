@@ -12,6 +12,7 @@ import { VoucherQueryPage } from "./VoucherQueryPage";
 import { BooksetSettingsPage } from "./BooksetSettingsPage";
 import { ChartAccountsPage } from "./ChartAccountsPage";
 import { LedgerPage } from "./LedgerPage";
+import { CarryForwardPage } from "./CarryForwardPage";
 import type { LedgerKind } from "../../../common/contracts";
 import type { BooksetOperationType } from "@renderer/components/BooksetOperationModal";
 import type { ShellContextState } from "../types";
@@ -48,7 +49,16 @@ export function RoutedModulePage({
     return <ChartAccountsPage />;
   }
   if (location.pathname === "/app/period-end/account-balance") {
-    return <LedgerPage key="trial-balance" kind="trial-balance" />;
+    return <LedgerPage key="closing-account-balance" kind="trial-balance" closingReport="account-balance" />;
+  }
+  if (location.pathname === "/app/period-end/trial-balance") {
+    return <LedgerPage key="closing-trial-balance" kind="trial-balance" closingReport="trial-balance" />;
+  }
+  if (location.pathname === "/app/period-end/account-summary") {
+    return <LedgerPage key="closing-account-summary" kind="trial-balance" closingReport="account-summary" />;
+  }
+  if (["/app/period-end/carry-custom", "/app/period-end/carry-cogs", "/app/period-end/carry-pl"].includes(location.pathname)) {
+    return <CarryForwardPage />;
   }
   if (location.pathname === "/app/cashier/cash-journal") {
     return <LedgerPage key="cash-journal" kind="journal" cashierJournal="cash" />;

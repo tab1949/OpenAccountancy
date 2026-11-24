@@ -42,6 +42,11 @@ function periodLabel(period: Period): string { return `${String(period.fiscal_ye
 
 export function queryLedger(db: Database.Database, query: LedgerQuery): LedgerResult {
   if (!["general", "subsidiary", "journal", "trial-balance"].includes(query.kind)) throw new Error("账簿类型无效。");
+  if (query.closingReport !== undefined &&
+    ((query.closingReport !== "trial-balance" && query.closingReport !== "account-balance" && query.closingReport !== "account-summary") ||
+      query.kind !== "trial-balance" || query.from.year !== query.to.year || query.from.periodNo !== query.to.periodNo)) {
+    throw new Error("期末报表查询无效，请选择一个会计期间。");
+  }
   if (query.cashierJournal !== undefined &&
     (query.cashierJournal !== "cash" && query.cashierJournal !== "bank" ||
       query.kind !== "journal" || query.accountCode !== cashierJournals[query.cashierJournal].accountCode)) {
@@ -118,7 +123,7 @@ export function queryLedger(db: Database.Database, query: LedgerQuery): LedgerRe
       const opening = sum(selected.filter((posting) => posting.date < from.start_date)).net;
       const movement = sum(selected.filter((posting) => posting.date >= from.start_date));
       const closing = add(opening, movement.net);
-      return { code: item.code, name: item.name, level: item.level, openingDebit: money(Math.max(opening, 0)),
+      return { code: item.code, name: item.name, category: item.category, level: item.level, openingDebit: money(Math.max(opening, 0)),
         openingCredit: money(Math.max(-opening, 0)), debit: money(movement.debit), credit: money(movement.credit),
         closingDebit: money(Math.max(closing, 0)), closingCredit: money(Math.max(-closing, 0)) };
     });

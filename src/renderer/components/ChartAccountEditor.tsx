@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import type { AccountCategory, ChartAccount, ChartAccountInput } from "../../common/contracts";
+import { categoriesForStandard } from "../../common/accountCategories";
 
 interface ChartAccountEditorProps {
   accounts: ChartAccount[];
@@ -12,9 +13,7 @@ interface ChartAccountEditorProps {
 }
 
 export function ChartAccountEditor({ accounts, standard, value, onChange, onSave, onCancel, saving = false }: ChartAccountEditorProps): ReactElement {
-  const categories: AccountCategory[] = standard === "ASBE_2006"
-    ? ["资产", "负债", "共同", "所有者权益", "成本", "损益"]
-    : ["资产", "负债", "所有者权益", "成本", "损益"];
+  const categories = categoriesForStandard(standard);
   return (
     <div className="chart-dialog" role="dialog" aria-label="新增科目">
       <h3>新增科目</h3>

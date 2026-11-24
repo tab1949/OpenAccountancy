@@ -1,15 +1,18 @@
 import fs from "node:fs/promises";
 import { BrowserWindow, dialog } from "electron";
 import ExcelJS from "exceljs";
-import { formatLedgerCell, ledgerTable } from "../common/ledgerTable";
+import { accountSummaryTable, formatLedgerCell, ledgerTable } from "../common/ledgerTable";
 import { cashierJournals } from "../common/cashierJournal";
+import { DEFAULT_ACCOUNT_INDENT } from "../common/accountIndent";
 import type { LedgerExportFormat, LedgerQuery, LedgerResult, OperationResult } from "../common/contracts";
 
 const titles = { general: "科目总账", subsidiary: "科目明细账", journal: "科目日记账", "trial-balance": "科目余额表" };
 
 function description(query: LedgerQuery, result: LedgerResult): string {
   const period = (year: number, number: number): string => `${String(year).padStart(4, "0")}年${String(number).padStart(2, "0")}期`;
-  return `${period(query.from.year, query.from.periodNo)} - ${period(query.to.year, query.to.periodNo)}${!query.cashierJournal && result.account ? `　${result.account.code} ${result.account.name}` : ""}`;
+  const range = query.closingReport ? period(query.from.year, query.from.periodNo) :
+    `${period(query.from.year, query.from.periodNo)} - ${period(query.to.year, query.to.periodNo)}`;
+  return `${range}${!query.cashierJournal && result.account ? `　${result.account.code} ${result.account.name}` : ""}${query.closingReport === "account-summary" ? "　各栏合计仅统计本栏总账科目" : ""}`;
 }
 
 function csvCell(value: string | number): string {
@@ -22,13 +25,14 @@ function html(value: string): string {
   return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]!);
 }
 
-export async function exportLedger(query: LedgerQuery, result: LedgerResult, format: LedgerExportFormat, owner?: BrowserWindow): Promise<OperationResult> {
-  const title = query.cashierJournal ? cashierJournals[query.cashierJournal].title : titles[result.kind];
+export async function exportLedger(query: LedgerQuery, result: LedgerResult, format: LedgerExportFormat, owner?: BrowserWindow, indentStyle = DEFAULT_ACCOUNT_INDENT): Promise<OperationResult> {
+  const title = query.closingReport === "account-summary" ? "科目汇总表" : query.closingReport === "trial-balance" ? "试算平衡表" :
+    query.cashierJournal ? cashierJournals[query.cashierJournal].title : titles[result.kind];
   const options = { defaultPath: `${title}.${format}`, filters: [{ name: format.toUpperCase(), extensions: [format] }] };
   const choice = owner ? await dialog.showSaveDialog(owner, options) : await dialog.showSaveDialog(options);
   if (choice.canceled || !choice.filePath) return { ok: false, message: "已取消导出。" };
   const destination = choice.filePath.toLowerCase().endsWith(`.${format}`) ? choice.filePath : `${choice.filePath}.${format}`;
-  const table = ledgerTable(result);
+  const table = query.closingReport === "account-summary" ? accountSummaryTable(result, indentStyle) : ledgerTable(result, indentStyle);
   const subtitle = description(query, result);
   if (format === "csv") {
     const lines = [[title], [subtitle], table.headers, ...table.rows.map((row) => row.cells)];
@@ -73,7 +77,7 @@ export async function exportLedger(query: LedgerQuery, result: LedgerResult, for
     const renderCell = (value: string | number): string => html(formatLedgerCell(value, result.kind));
     const markup = `<!doctype html><html><head><meta charset="utf-8"><style>
       body{font-family:"Microsoft YaHei",sans-serif;font-size:10px} h1{font-size:18px} table{width:100%;border-collapse:collapse}
-      th,td{border:1px solid #777;padding:4px;text-align:left;overflow-wrap:anywhere} .period{background:#fce8e8}.year{background:#e7f1ff}
+      th,td{border:1px solid #777;padding:4px;text-align:left;overflow-wrap:anywhere;white-space:pre-wrap} .period{background:#fce8e8}.year{background:#e7f1ff}
       thead{display:table-header-group} tr{break-inside:avoid}
       </style></head><body><h1>${html(title)}</h1><p>${html(subtitle)}</p><table><thead>${table.headerRows.map((row) => `<tr>${row.map((cell) => `<th${cell.colSpan ? ` colspan="${cell.colSpan}"` : ""}${cell.rowSpan ? ` rowspan="${cell.rowSpan}"` : ""}>${html(cell.label)}</th>`).join("")}</tr>`).join("")}</thead>
       <tbody>${table.rows.map((row) => `<tr class="${html(row.kind)}">${row.cells.map((cell) => `<td>${renderCell(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table></body></html>`;

@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
-const { ledgerTable } = require("../dist/electron/common/ledgerTable.js");
+const { accountSummaryTable, ledgerTable } = require("../dist/electron/common/ledgerTable.js");
 
 test("trial balance renders two grouped header rows and no uppercase total", async () => {
   const { createServer } = await import("vite");
@@ -15,17 +15,26 @@ test("trial balance renders two grouped header rows and no uppercase total", asy
     ] });
     const markup = renderToStaticMarkup(React.createElement(LedgerTableHeader, { rows: table.headerRows }));
     assert.match(markup, /<th rowSpan="2" scope="col">序号<\/th>/);
-    for (const label of ["期初", "本期", "期末"]) assert.ok(markup.includes(`<th colSpan="2" scope="colgroup">${label}</th>`));
+    for (const label of ["期初余额", "本期发生额", "期末余额"]) assert.ok(markup.includes(`<th colSpan="2" scope="colgroup">${label}</th>`));
     assert.equal((markup.match(/<tr>/g) || []).length, 2);
     assert.deepEqual(table.headerRows[1].map((cell) => cell.label), ["借方", "贷方", "借方", "贷方", "借方", "贷方"]);
     assert.deepEqual(table.rows.at(-1).cells, ["合计", "", "", 1, 0, 3, 4, 5, 0]);
     assert.equal(table.rows.length, 2);
+    assert.deepEqual(table.headerRows[0].slice(3).map((cell) => cell.label), ["期初余额", "本期发生额", "期末余额"]);
+    assert.deepEqual(table.headers.slice(3), ["期初余额借方", "期初余额贷方", "本期发生额借方", "本期发生额贷方", "期末余额借方", "期末余额贷方"]);
     const body = renderToStaticMarkup(React.createElement(LedgerTableBody, { table, kind: "trial-balance" }));
     assert.match(body, /<td>库存现金<\/td><td>1\.00<\/td><td><\/td><td>3\.00<\/td><td>4\.00<\/td><td>5\.00<\/td><td><\/td>/);
     assert.match(body, /<td>合计<\/td><td><\/td><td><\/td><td>1\.00<\/td><td><\/td><td>3\.00<\/td><td>4\.00<\/td><td>5\.00<\/td><td><\/td>/);
     const other = ledgerTable({ kind: "general", rows: [{ kind: "opening", date: "", summary: "期初余额", debit: 0, credit: 0, direction: "平", balance: 0 }], balances: [] });
     const otherBody = renderToStaticMarkup(React.createElement(LedgerTableBody, { table: other, kind: "general" }));
     assert.match(otherBody, /<td>期初余额<\/td><td>0\.00<\/td><td>0\.00<\/td><td>平<\/td><td>0\.00<\/td>/);
+    const summary = accountSummaryTable({ kind: "trial-balance", rows: [], balances: [
+      { code: "1001", name: "库存现金", category: "资产", level: 1, debit: 1, credit: 0 },
+      { code: "2202", name: "应付账款", category: "负债", level: 1, debit: 0, credit: 1 }
+    ] });
+    const summaryBody = renderToStaticMarkup(React.createElement(LedgerTableBody, { table: summary, kind: "trial-balance" }));
+    assert.match(summaryBody, /<td>1\.资产类<\/td><td><\/td><td><\/td><td>2\.负债类<\/td>/);
+    assert.match(summaryBody, /<td>1001 库存现金<\/td><td>1\.00<\/td><td><\/td><td>2202 应付账款<\/td>/);
   } finally {
     await server.close();
   }

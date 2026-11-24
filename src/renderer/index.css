@@ -152,6 +152,10 @@ a:hover {
 	z-index: 1;
 }
 
+.ledger-table td {
+	white-space: pre-wrap;
+}
+
 .ledger-trial-balance-table thead th {
 	position: static;
 	text-align: center;
@@ -1374,6 +1378,123 @@ a:hover {
 	margin-top: 12px;
 }
 
+.carry-forward-page {
+	display: grid;
+	gap: 12px;
+}
+
+.carry-filters,
+.carry-side-heading,
+.carry-actions {
+	display: flex;
+	align-items: end;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.carry-filters label,
+.carry-side-heading label,
+.carry-confirmation label {
+	display: grid;
+	gap: 6px;
+}
+
+.carry-filters select,
+.carry-side-heading select,
+.carry-confirmation input {
+	min-height: 36px;
+	border: 1px solid #bdc7d1;
+	border-radius: 8px;
+	padding: 0 10px;
+	background: #fff;
+}
+
+.carry-help,
+.carry-selection-total {
+	margin: 0;
+	color: #536779;
+	font-size: 13px;
+}
+
+.carry-direction-layout {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1fr);
+	gap: 12px;
+	align-items: stretch;
+}
+
+.carry-side {
+	min-width: 0;
+	display: grid;
+	grid-template-rows: auto minmax(220px, 1fr) auto;
+	gap: 10px;
+	border: 1px solid #d5dee6;
+	border-radius: 10px;
+	padding: 12px;
+	background: #f9fbfd;
+}
+
+.carry-side-heading h3 {
+	margin: 0;
+}
+
+.carry-table-scroll {
+	max-height: 460px;
+	overflow: auto;
+	border: 1px solid #d9e2ea;
+	border-radius: 8px;
+	background: #fff;
+}
+
+.carry-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 13px;
+}
+
+.carry-table th,
+.carry-table td {
+	padding: 9px;
+	border-bottom: 1px solid #edf2f7;
+	text-align: left;
+	white-space: nowrap;
+}
+
+.carry-table th {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	background: #f3f7fa;
+	color: #33475b;
+}
+
+.carry-table td:first-child,
+.carry-table th:first-child {
+	width: 52px;
+	text-align: center;
+}
+
+.carry-total-row {
+	background: #f2f7fb;
+	font-weight: 700;
+}
+
+.carry-direction-arrow {
+	display: grid;
+	place-items: center;
+	font-size: 30px;
+	font-weight: 700;
+	color: #2a5d88;
+}
+
+.carry-actions {
+	justify-content: flex-end;
+}
+
+.carry-confirmation h3 {
+	margin: 0 0 14px;
+}
+
 @media (max-width: 1080px) {
 	.workspace {
 		grid-template-columns: 1fr;
@@ -1417,5 +1538,20 @@ a:hover {
 	.user-list-header {
 		flex-direction: column;
 		align-items: stretch;
+	}
+}
+
+@media (max-width: 900px) {
+	.carry-direction-layout {
+		grid-template-columns: 1fr;
+	}
+
+	.carry-direction-arrow {
+		transform: rotate(90deg);
+	}
+
+	.carry-side-heading {
+		align-items: stretch;
+		flex-direction: column;
 	}
 }

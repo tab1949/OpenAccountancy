@@ -4,7 +4,7 @@ const React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
 const { MemoryRouter, Outlet, Route, Routes } = require("react-router-dom");
 
-test("period-end closing menu reuses the ledger balance page and reserves the other reports", async () => {
+test("period-end closing reports reuse the balance table with a single period", async () => {
   const { createServer } = await import("vite");
   const server = await createServer({ server: { middlewareMode: true }, appType: "custom" });
   try {
@@ -12,6 +12,7 @@ test("period-end closing menu reuses the ledger balance page and reserves the ot
     const { default: zhCN } = await server.ssrLoadModule("/i18n/locales/zh-CN.ts");
     await server.ssrLoadModule("/i18n/index.ts");
     const { RoutedModulePage } = await server.ssrLoadModule("/pages/workspace/RoutedModulePage.tsx");
+    const { initialLedgerPeriod, ledgerPeriodRange } = await server.ssrLoadModule("/pages/workspace/LedgerPage.tsx");
     const { CurrentAccountingPeriodContext } = await server.ssrLoadModule("/CurrentAccountingPeriodContext.ts");
     const groups = navSections.find((section) => section.key === "period-end").groups;
     const labels = (group) => group.items.map((item) => item.labelKey.split(".").reduce((value, key) => value[key], zhCN));
@@ -35,16 +36,37 @@ test("period-end closing menu reuses the ledger balance page and reserves the ot
     );
 
     const ledger = render("/app/ledger/trial-balance");
-    assert.equal(render("/app/period-end/account-balance"), ledger);
     assert.match(ledger, /仅显示总账科目/);
+    assert.match(ledger, /起始期间/);
+    assert.match(ledger, /结束期间/);
     for (const [path, title] of [
       ["/app/period-end/trial-balance", "试算平衡表"],
-      ["/app/period-end/account-summary", "科目汇总表"]
+      ["/app/period-end/account-balance", "科目余额表"]
     ]) {
       const markup = render(path);
-      assert.ok(markup.includes(title));
-      assert.match(markup, /placeholder-block/);
+      assert.match(markup, new RegExp(`<h2>${title}</h2>`));
+      assert.match(markup, /会计期间<select/);
+      assert.match(markup, /仅显示总账科目/);
+      assert.doesNotMatch(markup, /起始期间|结束期间|placeholder-block/);
     }
+    const summary = render("/app/period-end/account-summary");
+    assert.match(summary, /<h2>科目汇总表<\/h2>/);
+    assert.match(summary, /会计期间<select/);
+    assert.match(summary, /显示明细科目/);
+    assert.doesNotMatch(summary, /起始期间|结束期间|仅显示总账科目|placeholder-block/);
+
+    const periods = [{ year: 2026, periodNo: 1 }, { year: 2026, periodNo: 2 }, { year: 2027, periodNo: 1 }];
+    assert.equal(initialLedgerPeriod(periods, { year: 2026, periodNo: 2 }, true), "2026:2");
+    assert.equal(initialLedgerPeriod(periods, { year: 2027, periodNo: 1 }, true), "2027:1");
+    assert.equal(initialLedgerPeriod(periods, null, true), "");
+    assert.equal(initialLedgerPeriod(periods, { year: 2028, periodNo: 1 }, true), "");
+    assert.equal(initialLedgerPeriod(periods, null, false), "2026:1");
+    assert.deepEqual(ledgerPeriodRange("2026:2", "2027:1", true), {
+      from: { year: 2026, periodNo: 2 }, to: { year: 2026, periodNo: 2 }
+    });
+    assert.deepEqual(ledgerPeriodRange("2026:2", "2027:1", false), {
+      from: { year: 2026, periodNo: 2 }, to: { year: 2027, periodNo: 1 }
+    });
   } finally {
     await server.close();
   }

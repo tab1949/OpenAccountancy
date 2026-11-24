@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from "electron";
 import type {
   BackupBooksetPayload,
   BookkeepingPayload,
+  GenerateCarryForwardPayload,
   CreateBooksetPayload,
   ChangeOwnPasswordPayload,
   ChartAccountInput,
@@ -66,6 +67,8 @@ const api: OpenAccountancyApi = {
   listUnmappedDetails: (voucherIds?: number[]) => ipcRenderer.invoke("chart:unmapped", voucherIds),
   mapVoucherDetail: (rootCode: string, detail: string, accountCode: string) => ipcRenderer.invoke("chart:map-detail", rootCode, detail, accountCode),
   queryLedger: (query: LedgerQuery) => ipcRenderer.invoke("ledger:query", query),
+  getCarryForwardAccounts: (year: number, periodNo: number) => ipcRenderer.invoke("carry:accounts", year, periodNo),
+  generateCarryForwardVouchers: (payload: GenerateCarryForwardPayload) => ipcRenderer.invoke("carry:generate", payload),
   exportLedger: (query: LedgerQuery, format: LedgerExportFormat) => ipcRenderer.invoke("ledger:export", query, format),
   listVoucherAccounts: (keyword?: string) => ipcRenderer.invoke("voucher:accounts", keyword),
   getVoucherDetailSuggestions: (accountCode: string) => ipcRenderer.invoke("voucher:detail-suggestions", accountCode),

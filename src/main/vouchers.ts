@@ -417,6 +417,24 @@ export function saveVoucher(db: Database.Database, input: VoucherInput, confirmU
   }
 }
 
+export function saveVoucherBatch(db: Database.Database, inputs: VoucherInput[]): { ok: true; voucherIds: number[] } | { ok: false; message: string } {
+  if (!inputs.length) return { ok: false, message: "没有可生成的凭证。" };
+  const transaction = db.transaction(() => {
+    const voucherIds: number[] = [];
+    for (const input of inputs) {
+      const result = saveVoucher(db, input, false);
+      if (!result.ok || !result.voucherId) throw new Error(result.message || "凭证生成失败。");
+      voucherIds.push(result.voucherId);
+    }
+    return voucherIds;
+  });
+  try {
+    return { ok: true, voucherIds: transaction() };
+  } catch (error) {
+    return { ok: false, message: (error as Error).message || "凭证生成失败。" };
+  }
+}
+
 export function deleteVoucher(db: Database.Database, voucherId: number, confirmUnpost: boolean): OperationResult {
   ensureVoucherSchema(db);
   const row = db.prepare("SELECT voucher_id, voucher_date, voucher_no, status, amount, payload_json FROM voucher_records WHERE voucher_id = ?")

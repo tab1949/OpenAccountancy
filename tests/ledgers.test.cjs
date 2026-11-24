@@ -76,8 +76,19 @@ test("ledgers derive opening, period, year and trial balances from posted entrie
     const general = queryLedger(db, { kind: "general", from, to, accountCode: "1012" });
     assert.deepEqual(general.rows.map((r) => r.kind), ["opening", "period", "year"]);
     const balances = queryLedger(db, { kind: "trial-balance", from, to }).balances;
+    for (const closingReport of ["trial-balance", "account-balance", "account-summary"]) {
+      assert.deepEqual(queryLedger(db, { kind: "trial-balance", from, to, closingReport }).balances, balances);
+      assert.throws(() => queryLedger(db, { kind: "trial-balance", from, to: { year: 2027, periodNo: 1 }, closingReport }), /期末报表查询无效/);
+      assert.throws(() => queryLedger(db, { kind: "general", from, to, closingReport, accountCode: "1012" }), /期末报表查询无效/);
+    }
+    const rootSummary = queryLedger(db, { kind: "trial-balance", from, to, closingReport: "account-summary", rootsOnly: true }).balances;
+    assert.ok(rootSummary.every((row) => row.level === 1));
+    assert.deepEqual(rootSummary, balances.filter((row) => row.level === 1));
+    assert.ok(balances.some((row) => row.code === "101201"));
+    assert.throws(() => queryLedger(db, { kind: "trial-balance", from, to, closingReport: "invalid" }), /期末报表查询无效/);
     for (const code of ["1012", "101201"]) {
       const row = balances.find((r) => r.code === code);
+      assert.equal(row.category, "资产");
       assert.deepEqual([row.openingDebit, row.openingCredit, row.debit, row.credit, row.closingDebit, row.closingCredit], [3, 0, 0, 1, 2, 0]);
     }
     const next = queryLedger(db, { kind: "journal", from: { year: 2027, periodNo: 1 }, to: { year: 2027, periodNo: 1 }, accountCode: "1012" });

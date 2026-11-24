@@ -192,6 +192,7 @@ export interface BooksetSettings {
     levels: number;
     codeLengths: number[];
     firstMonthClosed: boolean;
+    indentStyle: string;
   };
   businessRules: {
     checkCashDeficit: boolean;
@@ -302,6 +303,43 @@ export interface BookkeepingPayload {
   voucherIds: number[];
 }
 
+export type CarryForwardKind = "custom" | "cogs" | "profit-loss";
+
+export interface CarryForwardBalanceRow {
+  id: string;
+  rootCode: string;
+  rootName: string;
+  category: AccountCategory;
+  detail: string;
+  level: number;
+  balance: number;
+  isTotal: boolean;
+}
+
+export interface CarryForwardAccount {
+  code: string;
+  name: string;
+  category: AccountCategory;
+  rows: CarryForwardBalanceRow[];
+}
+
+export interface CarryForwardAccountsResult {
+  accounts: CarryForwardAccount[];
+}
+
+export interface GenerateCarryForwardPayload {
+  kind: CarryForwardKind;
+  year: number;
+  periodNo: number;
+  sourceRowIds: string[];
+  targetRowId: string;
+  summary: string;
+}
+
+export interface CarryForwardMutationResult extends OperationResult {
+  voucherIds: number[];
+}
+
 export type AccountCategory = "资产" | "负债" | "共同" | "所有者权益" | "成本" | "损益";
 export type AccountDirection = "借" | "贷" | "借或贷";
 
@@ -346,6 +384,7 @@ export interface LedgerQuery {
   accountCode?: string;
   rootsOnly?: boolean;
   cashierJournal?: CashierJournal;
+  closingReport?: "trial-balance" | "account-balance" | "account-summary";
 }
 
 export interface LedgerRow {
@@ -362,6 +401,7 @@ export interface LedgerRow {
 export interface TrialBalanceRow {
   code: string;
   name: string;
+  category: AccountCategory;
   level: number;
   openingDebit: number;
   openingCredit: number;
@@ -442,6 +482,8 @@ export interface OpenAccountancyApi {
   listUnmappedDetails: (voucherIds?: number[]) => Promise<UnmappedDetail[]>;
   mapVoucherDetail: (rootCode: string, detail: string, accountCode: string) => Promise<OperationResult>;
   queryLedger: (query: LedgerQuery) => Promise<LedgerResult>;
+  getCarryForwardAccounts: (year: number, periodNo: number) => Promise<CarryForwardAccountsResult>;
+  generateCarryForwardVouchers: (payload: GenerateCarryForwardPayload) => Promise<CarryForwardMutationResult>;
   exportLedger: (query: LedgerQuery, format: LedgerExportFormat) => Promise<OperationResult>;
   listVoucherAccounts: (keyword?: string) => Promise<VoucherAccountOption[]>;
   getVoucherDetailSuggestions: (accountCode: string) => Promise<string[]>;

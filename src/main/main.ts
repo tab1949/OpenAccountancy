@@ -8,6 +8,7 @@ import { DatabaseService } from "./database";
 import { loadStandardSubjects } from "./accountingSubjects";
 import { createAccountForVoucherDetail, deleteChartAccount, listChartAccounts, listUnmappedDetails, mapVoucherDetail, saveChartAccount } from "./chartAccounts";
 import { queryLedger } from "./ledgers";
+import { generateCarryForwardVouchers, getCarryForwardAccounts } from "./carryForward";
 import { exportLedger } from "./ledgerExport";
 import {
   addFiscalYear,
@@ -50,6 +51,7 @@ import type {
   LoginPayload,
   LedgerExportFormat,
   LedgerQuery,
+  GenerateCarryForwardPayload,
   OpenBooksetByIdPayload,
   RecoverAccountPayload,
   RestoreBooksetBackupPayload,
@@ -870,14 +872,29 @@ function registerIpcHandlers(): void {
     return result;
   });
 
+  ipcMain.handle("carry:accounts", (_event, year: number, periodNo: number) => {
+    const auth = ensureAuthenticated();
+    if (!auth.ok) throw new Error(auth.message);
+    const result = withActiveBookset((db) => getCarryForwardAccounts(db, year, periodNo));
+    if (!result) throw new Error("请先打开账套。");
+    return result;
+  });
+
+  ipcMain.handle("carry:generate", (_event, payload: GenerateCarryForwardPayload) => {
+    const auth = ensureAuthenticated();
+    if (!auth.ok) return { ...auth, voucherIds: [] };
+    return withActiveBookset((db) => generateCarryForwardVouchers(db, payload)) ??
+      { ok: false, message: "请先打开账套。", voucherIds: [] };
+  });
+
   ipcMain.handle("ledger:export", async (_event, query: LedgerQuery, format: LedgerExportFormat) => {
     const auth = ensureAuthenticated();
     if (!auth.ok) return auth;
     if (!["pdf", "xlsx", "csv"].includes(format)) return { ok: false, message: "导出格式无效。" };
     try {
-      const result = withActiveBookset((db) => queryLedger(db, query));
-      if (!result) return { ok: false, message: "请先打开账套。" };
-      return await exportLedger(query, result, format, BrowserWindow.getFocusedWindow() ?? mainWindow ?? undefined);
+      const data = withActiveBookset((db) => ({ result: queryLedger(db, query), indentStyle: getBooksetSettings(db).accountStructure.indentStyle }));
+      if (!data) return { ok: false, message: "请先打开账套。" };
+      return await exportLedger(query, data.result, format, BrowserWindow.getFocusedWindow() ?? mainWindow ?? undefined, data.indentStyle);
     } catch (error) {
       return { ok: false, message: `导出失败：${error instanceof Error ? error.message : String(error)}` };
     }

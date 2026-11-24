@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
 import { useOutletContext } from "react-router-dom";
 import type { AccountCategory, ChartAccount, ChartAccountInput, UnmappedDetail } from "../../../common/contracts";
+import { categoriesForStandard } from "../../../common/accountCategories";
+import { DEFAULT_ACCOUNT_INDENT, indentAccount } from "../../../common/accountIndent";
 import { ChartAccountEditor } from "../../components/ChartAccountEditor";
 import type { ShellContextState } from "../types";
 
@@ -10,6 +12,7 @@ type Editor = ChartAccountInput & { originalCode?: string };
 export function ChartAccountsPage(): ReactElement {
   const { shellState } = useOutletContext<ShellContextState>();
   const [accounts, setAccounts] = useState<ChartAccount[]>([]);
+  const [indentStyle, setIndentStyle] = useState(DEFAULT_ACCOUNT_INDENT);
   const [standard, setStandard] = useState<"ASBE_2006" | "SBE_2011">("ASBE_2006");
   const [editor, setEditor] = useState<Editor | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -29,6 +32,7 @@ export function ChartAccountsPage(): ReactElement {
       const [list, settings] = await Promise.all([window.openAccountancy.listChartAccounts(), window.openAccountancy.getBooksetSettings()]);
       if (!settings) throw new Error("请先打开账套。");
       setAccounts(list);
+      setIndentStyle(settings.accountStructure.indentStyle);
       setStandard(settings.identity.accountingStandard);
     } catch (error) {
       setMessage(`读取科目表失败：${error instanceof Error ? error.message : String(error)}`);
@@ -45,9 +49,7 @@ export function ChartAccountsPage(): ReactElement {
     void refresh();
   }, [shellState]);
 
-  const categories: AccountCategory[] = standard === "ASBE_2006"
-    ? ["资产", "负债", "共同", "所有者权益", "成本", "损益"]
-    : ["资产", "负债", "所有者权益", "成本", "损益"];
+  const categories = categoriesForStandard(standard);
   const visible = accounts.filter((account) => `${account.code} ${account.name}`.toLocaleLowerCase().includes(search.toLocaleLowerCase()));
   const startAdd = (): void => {
     const parent = accounts[0];
@@ -167,8 +169,8 @@ export function ChartAccountsPage(): ReactElement {
               return <tr key={account.code} className={deleting ? (protectedAccount ? "chart-protected" : "chart-delete-row") : editing && account.level === 1 ? "chart-protected" : ""}
                 onClick={deleting && !protectedAccount ? () => void remove(account) : undefined}>
                 <td>{index + 1}</td><td>{account.level}</td>
-                <td>{draft ? <input aria-label={`${account.code} 科目编码`} value={draft.code} disabled={account.used || accounts.some((item) => item.parentCode === account.code)} onChange={(event) => updateDraft(account.code, { code: event.target.value })} /> : account.code}</td>
-                <td style={{ paddingLeft: `${(account.level - 1) * 20 + 8}px` }}>{draft ? <input aria-label={`${account.code} 科目名称`} value={draft.name} onChange={(event) => updateDraft(account.code, { name: event.target.value })} /> : account.name}</td>
+                <td style={{ whiteSpace: "pre-wrap" }}>{draft ? <><span>{indentAccount("", account.level, indentStyle)}</span><input aria-label={`${account.code} 科目编码`} value={draft.code} disabled={account.used || accounts.some((item) => item.parentCode === account.code)} onChange={(event) => updateDraft(account.code, { code: event.target.value })} /></> : indentAccount(account.code, account.level, indentStyle)}</td>
+                <td style={{ whiteSpace: "pre-wrap" }}>{draft ? <><span>{indentAccount("", account.level, indentStyle)}</span><input aria-label={`${account.code} 科目名称`} value={draft.name} onChange={(event) => updateDraft(account.code, { name: event.target.value })} /></> : indentAccount(account.name, account.level, indentStyle)}</td>
                 <td>{draft ? <select aria-label={`${account.code} 科目类型`} value={draft.category} onChange={(event) => updateDraft(account.code, { category: event.target.value as AccountCategory })}>{categories.map((category) => <option key={category}>{category}</option>)}</select> : account.category}</td>
                 <td>{draft ? (["借", "贷", "借或贷"] as const).map((direction) => <label key={direction}><input type="radio" name={`direction-${account.code}`} checked={draft.direction === direction} onChange={() => updateDraft(account.code, { direction })} />{direction}</label>) : account.direction}</td>
                 <td>{draft ? <button type="button" onClick={() => void saveDraft(account.code)}>保存</button> : deleting && !protectedAccount ? <button type="button" onClick={(event) => { event.stopPropagation(); void remove(account); }}>删除</button> : "—"}</td>

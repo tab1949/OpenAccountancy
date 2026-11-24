@@ -3,6 +3,7 @@ import type { JSX } from "react";
 import { useNavigate } from "react-router-dom";
 import type { AuthSession, BooksetSettings, FiscalPeriodSetting, SaveBooksetSettingsPayload } from "@common/contracts";
 import type { BooksetOperationType } from "@renderer/components/BooksetOperationModal";
+import { MAX_ACCOUNT_INDENT_LENGTH } from "../../../common/accountIndent";
 
 const SETTINGS_SECTIONS = [
   { id: "identity", label: "账套标识" },
@@ -77,6 +78,8 @@ export function BooksetSettingsPage({
         await refresh();
         await refreshShellData();
       }
+    } catch (error) {
+      setMessage(`保存账套设置失败：${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setSaving(false);
     }
@@ -249,7 +252,10 @@ export function BooksetSettingsPage({
                   patchStructure({ codeLengths });
                 }} /></label>)}
               </div>
-              {structureLocked ? <p className="voucher-warning">已经完成首次月结账，科目结构完全锁定。</p> : null}
+              {structureLocked ? <p className="voucher-warning">已经完成首次月结账，科目级次和编码长度已锁定。</p> : null}
+              <label>科目缩进样式<input type="text" maxLength={MAX_ACCOUNT_INDENT_LENGTH} value={settings.accountStructure.indentStyle}
+                onChange={(event) => patchStructure({ indentStyle: event.target.value })} /></label>
+              <p>每级重复一次，默认两个空格；可留空以取消缩进。此显示设置在结账后仍可修改。</p>
             </section>
           </div>
         ) : null}

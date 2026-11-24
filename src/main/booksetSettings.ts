@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { DEFAULT_ACCOUNT_INDENT, validAccountIndent } from "../common/accountIndent";
 import type {
   BooksetSettings,
   CurrentAccountingPeriod,
@@ -148,7 +149,7 @@ export function initializeBooksetSettings(db: Database.Database, payload: Create
   setSetting(db, "periodDays", 30);
   setSetting(db, "periodsPerYear", 12);
   setSetting(db, "automaticNewYear", true);
-  setSetting(db, "accountStructure", { levels: 4, codeLengths: [4, 2, 2, 2], firstMonthClosed: false });
+  setSetting(db, "accountStructure", { levels: 4, codeLengths: [4, 2, 2, 2], firstMonthClosed: false, indentStyle: DEFAULT_ACCOUNT_INDENT });
   setSetting(db, "businessRules", { checkCashDeficit: false });
   setSetting(db, "closingAndLedger", { requireReviewedBeforeClose: false, sameBalanceDirection: false });
   setSetting(db, "backup", { path: "", frequencyDays: 7, time: "23:00", lastBackupAt: "" });
@@ -178,7 +179,11 @@ export function getBooksetSettings(db: Database.Database): BooksetSettings {
   const enabledPeriodMeta = getMeta(db, "enable_fiscal_period_no");
   const year = fiscalYearMeta !== "" ? Number(fiscalYearMeta) : new Date().getFullYear();
   const periodNo = fiscalPeriodMeta !== "" ? Number(fiscalPeriodMeta) : new Date().getMonth() + 1;
-  const accountStructure = getSetting(db, "accountStructure", { levels: 4, codeLengths: [4, 2, 2, 2], firstMonthClosed: false });
+  const storedStructure = getSetting<Omit<BooksetSettings["accountStructure"], "indentStyle"> & { indentStyle?: string }>(
+    db, "accountStructure", { levels: 4, codeLengths: [4, 2, 2, 2], firstMonthClosed: false });
+  const indentStyle = storedStructure.indentStyle === undefined ? DEFAULT_ACCOUNT_INDENT : storedStructure.indentStyle;
+  if (!validAccountIndent(indentStyle)) throw new Error("账套科目缩进样式无效，请检查账套设置。");
+  const accountStructure = { ...storedStructure, indentStyle };
   const periods = readPeriodRows(db);
   return {
     identity: {
@@ -223,6 +228,9 @@ export function saveBooksetSettings(db: Database.Database, payload: SaveBooksetS
   if (payload.accountStructure.codeLengths.length !== payload.accountStructure.levels ||
     payload.accountStructure.codeLengths.some((length) => !Number.isInteger(length) || length < 1 || length > 10)) {
     return { ok: false, message: "每一级科目编码长度必须为 1 至 10 位，且与科目级次一致。" };
+  }
+  if (!validAccountIndent(payload.accountStructure.indentStyle)) {
+    return { ok: false, message: "科目缩进样式最多 16 个字符，不能包含控制字符。" };
   }
 
   const existing = getBooksetSettings(db);
